@@ -12,8 +12,8 @@
 #include "version.h"
 
 // --- Configuration ---
-const char* updateUrl = "https://raw.githubusercontent.com/cyroan/M5C3SE_MQTT/main/M5C3SE_MQTT.ino.m5stack_cores3.bin";
-const char* versionUrl = "https://raw.githubusercontent.com/cyroan/M5C3SE_MQTT/main/version.txt";
+const char* updateUrl = "https://raw.githubusercontent.com/cyroan/M5C3SE_MQTT/master/M5C3SE_MQTT.ino.m5stack_cores3.bin";
+const char* versionUrl = "https://raw.githubusercontent.com/cyroan/M5C3SE_MQTT/master/version.txt";
 const char* wifiConfigFile = "/wifi_config.txt";
 
 // --- SD Card Pins for CoreS3 ---
