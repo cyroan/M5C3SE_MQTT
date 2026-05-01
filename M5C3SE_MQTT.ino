@@ -278,7 +278,9 @@ void enterState(State ns) {
     switch (ns) {
         case STATE_BOOT:
             M5.Display.setTextSize(2); M5.Display.drawCenterString("M5Stack CoreS3 SE", 160, 40);
+            M5.Display.setTextColor(YELLOW);
             M5.Display.drawCenterString("Version: " FIRMWARE_VERSION, 160, 70);
+            M5.Display.setTextColor(WHITE);
             drawButton(20, 120, 130, 60, "UPDATE", BLUE); drawButton(170, 120, 130, 60, "RUN", GREEN);
             break;
         case STATE_SELECT_NET_TYPE:
