@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>M5C3SE_MQTT 使用手冊</title>
+    <style>
+        body { font-family: sans-serif; line-height: 1.6; max-width: 800px; margin: 0 auto; padding: 20px; color: #333; }
+        h1 { color: #0056b3; border-bottom: 2px solid #0056b3; padding-bottom: 10px; }
+        h2 { color: #2c3e50; margin-top: 30px; }
+        .feature-box { background: #f8f9fa; border-left: 5px solid #007bff; padding: 15px; margin: 10px 0; }
+        .btn-ref { display: inline-block; padding: 2px 8px; border-radius: 4px; color: white; font-weight: bold; font-size: 0.9em; }
+        .blue { background: #007bff; } .green { background: #28a745; } .orange { background: #fd7e14; } .purple { background: #6f42c1; }
+        code { background: #eee; padding: 2px 4px; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <h1>M5C3SE_MQTT 使用手冊</h1>
+    <p>本系統專為 M5Stack CoreS3 設計，提供強大的 MQTT 數據監控、雙網路切換及手動校時功能。</p>
+
+    <h2>1. 啟動與自動運行</h2>
+    <div class="feature-box">
+        <p>開機後會進入引導界面，顯示當前版本與 RTC 時間。若 <strong>30 秒</strong> 內無觸碰操作，系統將自動載入上次儲存的 MQTT 設定並進入監控模式。</p>
+    </div>
+
+    <h2>2. MQTT 監控模式 (RUN)</h2>
+    <ul>
+        <li>點擊 <span class="btn-ref green">RUN</span> 進入網路選擇界面。</li>
+        <li><strong>WIFI</strong>：掃描並連接無線網路（支持多頁滾動選擇）。</li>
+        <li><strong>LAN (DHCP)</strong>：使用有線模組自動獲取 IP。</li>
+        <li><strong>LAN (STATIC)</strong>：手動輸入靜態 IP 配置。</li>
+    </ul>
+
+    <h2>3. 歷史紀錄回顧 (Review)</h2>
+    <div class="feature-box">
+        <p>進入監控界面後，系統會自動保留最近 <strong>10 筆</strong> 接收到的消息：</p>
+        <ul>
+            <li>點擊右下角 <span class="btn-ref blue">UP</span>：查看上一筆歷史數據。</li>
+            <li>點擊右下角 <span class="btn-ref blue">DN</span>：查看較新的數據。翻至最新一筆時會自動切換回實時監控。</li>
+            <li>畫面頂部會顯示 <code>[1]</code> ~ <code>[10]</code> 提示當前回顧索引。</li>
+        </ul>
+    </div>
+
+    <h2>4. 設定功能</h2>
+    <h3>A. 系統校時 (SET RTC)</h3>
+    <p>點擊 <span class="btn-ref orange">SET RTC</span>。使用 <span class="btn-ref blue">+</span> / <span class="btn-ref orange">-</span> 調整數值，<span class="btn-ref orange">Next</span> 切換欄位，最後按 <span class="btn-ref green">SAVE</span> 寫入硬件。</p>
+    
+    <h3>B. MQTT 參數設定 (SET MQTT)</h3>
+    <p>點擊 <span class="btn-ref purple">SET MQTT</span> 進入引導式設定：</p>
+    <ol>
+        <li>輸入 Server 地址 -> 按 <strong>OK</strong>。</li>
+        <li>輸入 Port (預設 1883) -> 按 <strong>OK</strong>。</li>
+        <li>輸入訂閱 Topic (SUB) -> 按 <strong>OK</strong>。</li>
+        <li>輸入發布 Topic (PUB) -> 按 <strong>OK</strong> 自動儲存至 SD 卡。</li>
+    </ol>
+    <p>💡 鍵盤說明：<code>KB</code> 切換英/數分頁；<code>HOME</code> 隨時放棄設定回到首頁。</p>
+
+    <h2>5. 固件更新 (UPDATE)</h2>
+    <p>點擊 <span class="btn-ref blue">UPDATE</span>。系統將強制開啟 <strong>WiFi</strong> 並連線至 GitHub 檢查最新固件。若發現新版本，系統將自動下載並閃爍更新。</p>
+
+    <footer style="margin-top: 50px; font-size: 0.8em; color: #888;">
+        © 2024 M5C3SE_MQTT Project. Powered by Gemini CLI.
+    </footer>
+</body>
+</html>
