@@ -245,7 +245,7 @@ void drawSsidList() {
 void updatePasswordDisplay() {
     M5.Display.fillRect(0, 0, 320, 40, DARKGREY); M5.Display.setCursor(5, 5);
     M5.Display.setTextSize(1); M5.Display.setTextColor(WHITE);
-    M5.Display.printf("Net:%s | SSID:%s", activeNet == NET_WIFI ? "WiFi" : "LAN", selectedSSID.c_str());
+    M5.Display.printf("Mode:%s | SSID:%s", isOtaMode ? "OTA" : "RUN", selectedSSID.c_str());
     M5.Display.setCursor(5, 20); M5.Display.setTextSize(2); M5.Display.printf("PW:%s", wifiPassword.c_str());
 }
 
@@ -327,7 +327,18 @@ void handleTouch() {
     int x = detail.x, y = detail.y;
     switch (currentState) {
         case STATE_BOOT:
-            if (y > 120 && y < 180) { if (x < 150) { isOtaMode = true; enterState(STATE_SELECT_NET_TYPE); } else { isOtaMode = false; enterState(STATE_SELECT_NET_TYPE); } }
+            if (y > 120 && y < 180) { 
+                if (x < 150) { 
+                    // UPDATE button
+                    isOtaMode = true; 
+                    activeNet = NET_WIFI; 
+                    enterState(STATE_SCAN_WIFI); 
+                } else { 
+                    // RUN button
+                    isOtaMode = false; 
+                    enterState(STATE_SELECT_NET_TYPE); 
+                } 
+            }
             break;
         case STATE_SELECT_NET_TYPE:
             if (y > 120 && y < 180) { if (x < 150) { activeNet = NET_WIFI; enterState(STATE_SCAN_WIFI); } else { activeNet = NET_LAN; enterState(STATE_LAN_CONFIG); } }
