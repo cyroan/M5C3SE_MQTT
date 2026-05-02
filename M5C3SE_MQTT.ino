@@ -510,7 +510,7 @@ void handleTouch() {
 
 void loop() {
     M5.update(); if (M5.Touch.getCount() > 0) handleTouch();
-    if (currentState == STATE_BOOT) {
+    if (currentState == STATE_BOOT && !isOtaMode) {
         static unsigned long lastUpdate = 0;
         if (millis() - lastUpdate > 1000) {
             auto dt = M5.Rtc.getDateTime(); M5.Display.setTextColor(CYAN, BLACK);
@@ -519,15 +519,12 @@ void loop() {
         }
         unsigned long e = (millis() - stateTimer) / 1000;
         if (e >= 30) { 
-            isOtaMode = false; 
-            if (currentState == STATE_BOOT) {
-                // Auto-run: Load stored credentials and attempt connection
-                if (activeNet == NET_WIFI) {
-                    selectedSSID = storedRunSsid;
-                    wifiPassword = storedRunPass;
-                }
-                enterState(STATE_CONNECTING); 
+            // Auto-run: Load stored credentials and attempt connection
+            if (activeNet == NET_WIFI) {
+                selectedSSID = storedRunSsid;
+                wifiPassword = storedRunPass;
             }
+            enterState(STATE_CONNECTING); 
         }
     }
     if (currentState == STATE_CONNECTING) {
