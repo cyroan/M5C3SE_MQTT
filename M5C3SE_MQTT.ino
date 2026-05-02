@@ -222,6 +222,8 @@ void mqttCallback(char* topic, byte* payload, unsigned long length) {
 }
 
 void reconnectMqtt() {
+    bool netReady = (activeNet == NET_WIFI ? WiFi.status() == WL_CONNECTED : (Ethernet.localIP()[0] != 0));
+    if (!netReady) return;
     if (!mqttClient.connected()) {
         M5.Display.setCursor(10, 195); M5.Display.setTextSize(1); M5.Display.setTextColor(WHITE);
         M5.Display.print("MQTT Reconnecting...");
@@ -444,9 +446,25 @@ void handleTouch() {
             }
             break;
         case STATE_RUNNING:
-            if (y > 200) { if (x > 215 && x < 265) { if (historyCount > 0) { if (historyViewIdx == -1) historyViewIdx = (historyWriteIdx + 9) % 10; else historyViewIdx = (historyWriteIdx + 9) % 10; updateRunningUI(); delay(150); } }
-                else if (x > 265) { if (historyViewIdx != -1) { historyViewIdx = (historyViewIdx + 1) % 10; if (historyViewIdx == (historyWriteIdx + 9) % 10) historyViewIdx = -1; updateRunningUI(); delay(150); } }
-                else if (x < 215) { enterState(STATE_BOOT); } }
+            if (y > 200) { 
+                if (x > 215 && x < 265) { 
+                    if (historyCount > 0) { 
+                        if (historyViewIdx == -1) historyViewIdx = (historyWriteIdx + 9) % 10; 
+                        else historyViewIdx = (historyViewIdx + 9) % 10; 
+                        updateRunningUI(); delay(150); 
+                    } 
+                }
+                else if (x > 265) { 
+                    if (historyViewIdx != -1) { 
+                        historyViewIdx = (historyViewIdx + 1) % 10; 
+                        if (historyViewIdx == (historyWriteIdx + 9) % 10) historyViewIdx = -1; 
+                        updateRunningUI(); delay(150); 
+                    } 
+                }
+                else if (x > 150 && x < 210) { // Narrowed HOME touch area
+                    enterState(STATE_BOOT); 
+                } 
+            }
             break;
     }
 }
@@ -461,7 +479,17 @@ void loop() {
             lastUpdate = millis();
         }
         unsigned long e = (millis() - stateTimer) / 1000;
-        if (e >= 30) { isOtaMode = false; enterState(STATE_RUNNING); }
+        if (e >= 30) { 
+            isOtaMode = false; 
+            if (currentState == STATE_BOOT) {
+                // Auto-run: Load stored credentials and attempt connection
+                if (activeNet == NET_WIFI) {
+                    selectedSSID = storedRunSsid;
+                    wifiPassword = storedRunPass;
+                }
+                enterState(STATE_CONNECTING); 
+            }
+        }
     }
     if (currentState == STATE_CONNECTING) {
         bool c = (activeNet == NET_WIFI ? WiFi.status() == WL_CONNECTED : Ethernet.localIP()[0] != 0);
