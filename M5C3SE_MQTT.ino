@@ -353,7 +353,20 @@ void enterState(State ns) {
         case STATE_LAN_STATIC_INPUT: kbdPage = 1; lanInputIdx = 0; updateLanStaticDisplay(); drawKeyboard(); break;
         case STATE_SET_MQTT: kbdPage = 0; mqttSetStep = 0; updateMqttStepDisplay(); drawKeyboard(); break;
         case STATE_CONNECTING:
-            M5.Display.drawCenterString("Connecting...", 160, 110);
+            M5.Display.drawCenterString("Connecting...", 160, 60);
+            M5.Display.setTextSize(1); M5.Display.setTextColor(YELLOW);
+            {
+                String netMode = (activeNet == NET_WIFI) ? "WIFI" : (activeNet == NET_LAN_DHCP ? "LAN (DHCP)" : "LAN (STATIC)");
+                M5.Display.drawCenterString("Mode: " + netMode, 160, 90);
+                if (activeNet == NET_WIFI) {
+                    M5.Display.drawCenterString("SSID: " + selectedSSID, 160, 110);
+                    M5.Display.drawCenterString("PASS: " + wifiPassword, 160, 130);
+                } else if (activeNet == NET_LAN_STATIC) {
+                    M5.Display.drawCenterString("IP: " + lanIP, 160, 110);
+                }
+            }
+            M5.Display.setTextSize(2); M5.Display.setTextColor(WHITE);
+
             mqttClient.setServer(mqttServer.c_str(), mqttPort);
             if (activeNet == NET_WIFI) { 
                 mqttClient.setClient(wifiClient); 
