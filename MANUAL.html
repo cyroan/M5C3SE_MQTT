@@ -10,6 +10,7 @@
         .feature-box { background: #f8f9fa; border-left: 5px solid #007bff; padding: 15px; margin: 10px 0; }
         .btn-ref { display: inline-block; padding: 2px 8px; border-radius: 4px; color: white; font-weight: bold; font-size: 0.9em; }
         .blue { background: #007bff; } .green { background: #28a745; } .orange { background: #fd7e14; } .purple { background: #6f42c1; }
+        .debug-text { color: #d63384; font-weight: bold; }
         code { background: #eee; padding: 2px 4px; border-radius: 3px; }
     </style>
 </head>
@@ -17,9 +18,14 @@
     <h1>M5C3SE_MQTT 使用手冊</h1>
     <p>本系統專為 M5Stack CoreS3 設計，提供強大的 MQTT 數據監控、雙網路切換及手動校時功能。</p>
 
-    <h2>1. 啟動與自動運行</h2>
+    <h2>1. 啟動與自動運行 (Auto-Run)</h2>
     <div class="feature-box">
-        <p>開機後會進入引導界面，顯示當前版本與 RTC 時間。若 <strong>30 秒</strong> 內無觸碰操作，系統將自動載入上次儲存的 MQTT 設定並進入監控模式。</p>
+        <p>開機後進入引導界面。若 <strong>30 秒</strong> 內無觸碰操作，系統將自動啟動：</p>
+        <ul>
+            <li><strong>連線記憶</strong>：系統會自動使用最後一次成功連線的介面（WIFI 或 LAN）。</li>
+            <li><strong>連線診斷</strong>：在 <code>Connecting...</code> 畫面會以<span class="debug-text">黃色字體</span>顯示當前的 SSID、密碼及連線模式，便於排查 SD 卡設定問題。</li>
+            <li><strong>防衝突機制</strong>：若已手動進入 UPDATE 模式，自動運行計時器將自動禁用，確保更新不被中斷。</li>
+        </ul>
     </div>
 
     <h2>2. MQTT 監控模式 (RUN)</h2>
@@ -34,7 +40,7 @@
     <div class="feature-box">
         <p>進入監控界面後，系統會自動保留最近 <strong>10 筆</strong> 接收到的消息：</p>
         <ul>
-            <li>點擊右下角 <span class="btn-ref blue">UP</span>：查看上一筆歷史數據。</li>
+            <li>點擊右下角 <span class="btn-ref blue">UP</span>：查看上一筆歷史數據（修正回溯邏輯）。</li>
             <li>點擊右下角 <span class="btn-ref blue">DN</span>：查看較新的數據。翻至最新一筆時會自動切換回實時監控。</li>
             <li>畫面頂部會顯示 <code>[1]</code> ~ <code>[10]</code> 提示當前回顧索引。</li>
         </ul>
@@ -55,10 +61,13 @@
     <p>💡 鍵盤說明：<code>KB</code> 切換英/數分頁；<code>HOME</code> 隨時放棄設定回到首頁。</p>
 
     <h2>5. 固件更新 (UPDATE)</h2>
-    <p>點擊 <span class="btn-ref blue">UPDATE</span>。系統將強制開啟 <strong>WiFi</strong> 並連線至 GitHub 檢查最新固件。若發現新版本，系統將自動下載並閃爍更新。</p>
+    <p>點擊 <span class="btn-ref blue">UPDATE</span>。系統將強制開啟 <strong>WiFi</strong> 並連線至 GitHub 檢查最新固件。</p>
+    <div class="feature-box">
+        <p><strong>注意</strong>：自 v1.1.12 起，進入此模式後會自動鎖定背景計時器，避免與 30 秒自動運行衝突導致更新失敗。</p>
+    </div>
 
     <footer style="margin-top: 50px; font-size: 0.8em; color: #888;">
-        © 2024 M5C3SE_MQTT Project. Powered by Gemini CLI.
+        © 2026 M5C3SE_MQTT Project. Version 1.1.12+.
     </footer>
 </body>
 </html>
