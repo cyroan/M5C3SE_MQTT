@@ -18,6 +18,7 @@ const char* versionUrl = "https://raw.githubusercontent.com/cyroan/M5C3SE_MQTT/m
 const char* wifiConfigFile = "/wifi_config.txt";
 const char* lanConfigFile = "/lan_config.txt";
 const char* mqttConfigFile = "/mqtt_config.txt";
+const char* netPrefFile = "/net_pref.txt";
 
 #define SD_SPI_SCK_PIN  36
 #define SD_SPI_MISO_PIN 35
@@ -144,6 +145,25 @@ void loadMQTTConfig() {
     }
 }
 
+void saveNetPref() {
+    if (!sdAvailable) return;
+    File file = SD.open(netPrefFile, FILE_WRITE);
+    if (file) {
+        file.println(String((int)activeNet));
+        file.close();
+    }
+}
+
+void loadNetPref() {
+    if (!sdAvailable || !SD.exists(netPrefFile)) return;
+    File file = SD.open(netPrefFile, FILE_READ);
+    if (file) {
+        String s = file.readStringUntil('\n'); s.trim();
+        if (s != "") activeNet = (NetworkType)s.toInt();
+        file.close();
+    }
+}
+
 // --- Keyboard Logic ---
 const char* kbdMap0 = "ABCDEFGHIJKLMNOPQRSTUVW<\x01"; // Slot 23=<, 24=\x01
 const char* kbdMap1 = "XYZ0123456789.-_/@: \x01\x02\n"; // Slot 21= , 22=\x01, 23=\x02, 24=\n
@@ -237,7 +257,8 @@ bool initSD() { SPI.begin(SD_SPI_SCK_PIN, SD_SPI_MISO_PIN, SD_SPI_MOSI_PIN, SD_S
 void setup() {
     auto cfg = M5.config(); M5.begin(cfg);
     M5.Display.setRotation(1);
-    initSD(); loadWiFiConfig(); loadLANConfig(); loadMQTTConfig();
+    delay(200); // Give SD card a moment
+    initSD(); loadWiFiConfig(); loadLANConfig(); loadMQTTConfig(); loadNetPref();
     mqttClient.setServer(mqttServer.c_str(), mqttPort);
     mqttClient.setCallback(mqttCallback);
     enterState(STATE_BOOT);
@@ -334,9 +355,14 @@ void enterState(State ns) {
         case STATE_CONNECTING:
             M5.Display.drawCenterString("Connecting...", 160, 110);
             mqttClient.setServer(mqttServer.c_str(), mqttPort);
-            if (activeNet == NET_WIFI) { mqttClient.setClient(wifiClient); WiFi.begin(selectedSSID.c_str(), wifiPassword.c_str()); }
+            if (activeNet == NET_WIFI) { 
+                mqttClient.setClient(wifiClient); 
+                WiFi.mode(WIFI_STA);
+                WiFi.begin(selectedSSID.c_str(), wifiPassword.c_str()); 
+            }
             else {
-                mqttClient.setClient(ethClient); SPI.begin(LAN_SPI_SCK_PIN, LAN_SPI_MISO_PIN, LAN_SPI_MOSI_PIN, -1);
+                mqttClient.setClient(ethClient); 
+                SPI.begin(LAN_SPI_SCK_PIN, LAN_SPI_MISO_PIN, LAN_SPI_MOSI_PIN, -1);
                 LAN.setResetPin(LAN_RST_PIN); LAN.reset(); LAN.init(LAN_CS_PIN);
                 if (activeNet == NET_LAN_DHCP) Ethernet.begin(mac);
                 else { IPAddress ip, gw, msk, dns; ip.fromString(lanIP); gw.fromString(lanGW); msk.fromString(lanMask); dns.fromString(lanDNS); Ethernet.begin(mac, ip, dns, gw, msk); }
@@ -493,7 +519,9 @@ void loop() {
     }
     if (currentState == STATE_CONNECTING) {
         bool c = (activeNet == NET_WIFI ? WiFi.status() == WL_CONNECTED : Ethernet.localIP()[0] != 0);
-        if (c) { if (activeNet == NET_WIFI) saveWiFiConfig(); else saveLANConfig();
+        if (c) { 
+            saveNetPref(); // Save last successful network type
+            if (activeNet == NET_WIFI) saveWiFiConfig(); else saveLANConfig();
             configTime(8 * 3600, 0, "pool.ntp.org", "time.nist.gov"); struct tm ti; if (getLocalTime(&ti)) M5.Rtc.setDateTime(&ti);
             if (isOtaMode) enterState(STATE_OTA); else enterState(STATE_RUNNING);
         } else if (millis() - stateTimer > 15000) { M5.Display.fillScreen(RED); M5.Display.drawCenterString("Fail", 160, 110); delay(2000); enterState(STATE_SELECT_NET_TYPE); }
