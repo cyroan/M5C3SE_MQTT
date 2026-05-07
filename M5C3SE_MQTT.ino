@@ -67,6 +67,8 @@ byte mac[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0x89};
 M5Module_LAN LAN;
 int scanCount = 0, selectedSsidIdx = 0, kbdPage = 0;
 bool isOtaMode = false;
+int scrollOffset = 0;
+M5Canvas msgCanvas(&M5.Display);
 
 // RTC/MQTT Setting variables
 int rtcY, rtcM, rtcD, rtcH, rtcMin, rtcSetIdx = 0; 
@@ -213,9 +215,41 @@ void updateRunningUI() {
     M5.Display.setTextColor(YELLOW); M5.Display.setTextSize(2); M5.Display.setCursor(10, 45); M5.Display.print(dispTopic);
     if (historyViewIdx != -1) { M5.Display.setTextColor(ORANGE); M5.Display.printf(" [%d]", ((historyWriteIdx - 1 - historyViewIdx + 10) % 10) + 1); }
     M5.Display.drawLine(10, 70, 310, 70, DARKGREY);
+    
+    // Message Display Area (Scrolled)
+    int msgAreaY = 105, msgAreaH = 95; 
     M5.Display.setTextColor(CYAN); M5.Display.setTextSize(2); M5.Display.setCursor(10, 80); M5.Display.print("Msg: ");
     if (dispTime != "") { M5.Display.setTextColor(LIGHTGREY); M5.Display.print("(" + dispTime + ")"); }
-    M5.Display.setTextColor(WHITE); M5.Display.setCursor(10, 105); M5.Display.println(dispMsg);
+    
+    // Draw Message with Scrolling using ClipRect
+    msgCanvas.createSprite(270, 1500); 
+    msgCanvas.fillSprite(BLACK);
+    msgCanvas.setTextColor(WHITE);
+    msgCanvas.setTextSize(2);
+    msgCanvas.setCursor(0, 0);
+    msgCanvas.println(dispMsg);
+    
+    int contentH = msgCanvas.getCursorY();
+    if (scrollOffset < 0) scrollOffset = 0;
+    if (contentH > msgAreaH && scrollOffset > contentH - msgAreaH) scrollOffset = contentH - msgAreaH;
+    if (contentH <= msgAreaH) scrollOffset = 0;
+
+    M5.Display.setClipRect(10, msgAreaY, 270, msgAreaH);
+    msgCanvas.pushSprite(10, msgAreaY - scrollOffset);
+    M5.Display.clearClipRect();
+    msgCanvas.deleteSprite();
+
+    // Scroll Buttons & Bar
+    if (contentH > msgAreaH) {
+        drawButton(285, 105, 30, 45, "^", BLUE, 1); 
+        drawButton(285, 155, 30, 45, "v", BLUE, 1); 
+        int barH = (msgAreaH * msgAreaH) / contentH;
+        if (barH < 5) barH = 5;
+        int barY = msgAreaY + (scrollOffset * (msgAreaH - barH)) / (contentH - msgAreaH);
+        M5.Display.fillRect(280, msgAreaY, 3, msgAreaH, DARKGREY);
+        M5.Display.fillRect(280, barY, 3, barH, WHITE);
+    }
+
     M5.Display.fillRect(5, 205, 310, 32, DARKGREY); 
     M5.Display.setTextSize(1); M5.Display.setTextColor(WHITE); M5.Display.setCursor(10, 215); M5.Display.print("SD:");
     M5.Display.fillCircle(35, 220, 5, sdAvailable ? GREEN : RED);
@@ -229,7 +263,12 @@ void updateRunningUI() {
 }
 
 void mqttCallback(char* topic, byte* payload, unsigned long length) {
-    String pl = ""; for (int i = 0; i < length; i++) pl += (char)payload[i];
+    Serial.printf("MQTT Received [%s] Length: %u\n", topic, length);
+    String pl = ""; 
+    for (int i = 0; i < length; i++) {
+        pl += (char)payload[i];
+        if (i > 2000) break; // Safety cap for UI display
+    }
     auto dt = M5.Rtc.getDateTime();
     char ts[32]; sprintf(ts, "%02d:%02d:%02d", dt.time.hours, dt.time.minutes, dt.time.seconds);
     msgHistory[historyWriteIdx] = {String(topic), pl, String(ts)};
@@ -247,8 +286,16 @@ void reconnectMqtt() {
     if (!mqttClient.connected()) {
         M5.Display.setCursor(10, 195); M5.Display.setTextSize(1); M5.Display.setTextColor(WHITE);
         M5.Display.print("MQTT Reconnecting...");
+        Serial.printf("Attempting MQTT connection to %s:%d...\n", mqttServer.c_str(), mqttPort);
         String clientId = "M5-C3SE-" + String(random(0xffff), HEX);
-        if (mqttClient.connect(clientId.c_str())) { mqttClient.subscribe(mqttTopicSub.c_str()); M5.Display.fillRect(0, 190, 320, 15, BLACK); }
+        if (mqttClient.connect(clientId.c_str())) { 
+            Serial.println("Connected to MQTT Broker.");
+            bool subOk = mqttClient.subscribe(mqttTopicSub.c_str()); 
+            Serial.printf("Subscribe to [%s] %s\n", mqttTopicSub.c_str(), subOk ? "SUCCESS" : "FAILED");
+            M5.Display.fillRect(0, 190, 320, 15, BLACK); 
+        } else {
+            Serial.printf("MQTT Connect Failed, rc=%d\n", mqttClient.state());
+        }
     }
 }
 
@@ -368,6 +415,7 @@ void enterState(State ns) {
             M5.Display.setTextSize(2); M5.Display.setTextColor(WHITE);
 
             mqttClient.setServer(mqttServer.c_str(), mqttPort);
+            mqttClient.setBufferSize(2048); // Increase buffer for 1KB+ payloads
             if (activeNet == NET_WIFI) { 
                 mqttClient.setClient(wifiClient); 
                 WiFi.mode(WIFI_STA);
@@ -383,9 +431,15 @@ void enterState(State ns) {
             break;
         case STATE_OTA: updateFirmware(); break;
         case STATE_RUNNING:
-            historyViewIdx = -1; M5.Display.fillScreen(DARKGREY); M5.Display.setTextColor(WHITE); M5.Display.setTextSize(2);
+            historyViewIdx = -1; scrollOffset = 0; M5.Display.fillScreen(DARKGREY); M5.Display.setTextColor(WHITE); M5.Display.setTextSize(2);
             M5.Display.setCursor(10, 10); M5.Display.print("MQTT MONITOR"); M5.Display.drawLine(0, 35, 320, 35, WHITE);
-            if ((activeNet == NET_WIFI && WiFi.status() != WL_CONNECTED) || (activeNet != NET_WIFI && Ethernet.localIP()[0] == 0)) { M5.Display.drawCenterString("Disconnected!", 160, 100); } else updateRunningUI();
+            if ((activeNet == NET_WIFI && WiFi.status() != WL_CONNECTED) || (activeNet != NET_WIFI && Ethernet.localIP()[0] == 0)) { 
+                M5.Display.drawCenterString("Disconnected!", 160, 100); 
+                Serial.println("Network Disconnected!");
+            } else {
+                updateRunningUI();
+                Serial.printf("Running... Network OK. IP: %s\n", activeNet == NET_WIFI ? WiFi.localIP().toString().c_str() : Ethernet.localIP().toString().c_str());
+            }
             break;
         case STATE_SET_RTC:
             { auto dt = M5.Rtc.getDateTime(); rtcY = dt.date.year; rtcM = dt.date.month; rtcD = dt.date.date; rtcH = dt.time.hours; rtcMin = dt.time.minutes; rtcSetIdx = 0; }
@@ -485,19 +539,29 @@ void handleTouch() {
             }
             break;
         case STATE_RUNNING:
+            if (y > 100 && y < 200) { 
+                if (x > 280) { // Scroll Buttons
+                    if (y < 150) scrollOffset -= 80; else scrollOffset += 80;
+                    updateRunningUI(); delay(150); return;
+                }
+                if (detail.isDragging()) {
+                    scrollOffset -= (detail.y - detail.prev_y);
+                    updateRunningUI(); return;
+                }
+            }
             if (y > 200) { 
                 if (x > 215 && x < 265) { 
                     if (historyCount > 0) { 
                         if (historyViewIdx == -1) historyViewIdx = (historyWriteIdx + 9) % 10; 
                         else historyViewIdx = (historyViewIdx + 9) % 10; 
-                        updateRunningUI(); delay(150); 
+                        scrollOffset = 0; updateRunningUI(); delay(150); 
                     } 
                 }
                 else if (x > 265) { 
                     if (historyViewIdx != -1) { 
                         historyViewIdx = (historyViewIdx + 1) % 10; 
                         if (historyViewIdx == (historyWriteIdx + 9) % 10) historyViewIdx = -1; 
-                        updateRunningUI(); delay(150); 
+                        scrollOffset = 0; updateRunningUI(); delay(150); 
                     } 
                 }
                 else if (x > 150 && x < 210) { // Narrowed HOME touch area
