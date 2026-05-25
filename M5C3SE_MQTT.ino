@@ -11,6 +11,7 @@
 #include <LittleFS.h>
 #include <M5Module_LAN.h>
 #include "version.h"
+#include "icons_2026.h"
 
 // --- Configuration Files ---
 const char* updateUrl = "https://raw.githubusercontent.com/cyroan/M5C3SE_MQTT/master/M5C3SE_MQTT.ino.m5stack_cores3.bin";
@@ -34,8 +35,8 @@ const char* netPrefFile = "/net_pref.txt";
 // --- MQTT Dynamic Configuration ---
 String mqttServer = "mqtt.m5stack.com";
 int mqttPort = 1883;
-String mqttTopicSub = "Advantech/#";
-String mqttTopicPub = "Advantech/T";
+String mqttTopicSub = "Prowave/#";
+String mqttTopicPub = "Pro/T";
 
 struct MqttMsg { String topic; String payload; String timestamp; };
 MqttMsg msgHistory[10];
@@ -53,7 +54,7 @@ NetworkType activeNet = NET_WIFI;
 enum State {
     STATE_BOOT, STATE_SELECT_NET_TYPE, STATE_SCAN_WIFI, STATE_SELECT_SSID,
     STATE_INPUT_PASSWORD, STATE_LAN_STATIC_INPUT, STATE_CONNECTING, STATE_OTA, STATE_RUNNING,
-    STATE_SET_RTC, STATE_SET_MQTT
+    STATE_SET_RTC, STATE_SET_MQTT, STATE_DIAG
 };
 
 State currentState = STATE_BOOT;
@@ -73,6 +74,22 @@ M5Canvas msgCanvas(&M5.Display);
 // RTC/MQTT Setting variables
 int rtcY, rtcM, rtcD, rtcH, rtcMin, rtcSetIdx = 0; 
 int mqttSetStep = 0; 
+
+// --- DIAG Mode logic ---
+void drawDiagDashboard() {
+    M5.Display.fillScreen(BLACK);
+    int iconSize = 78;
+    int startX = 4; // (320 - 4*78) / 2 = 4
+    int startY = 3; // (240 - 3*78) / 2 = 3
+    M5.Display.setSwapBytes(true); 
+    for (int i = 0; i < 12; i++) {
+        int col = i % 4;
+        int row = i / 4;
+        int x = startX + col * iconSize;
+        int y = startY + row * iconSize;
+        M5.Display.pushImage(x, y, iconSize, iconSize, icons_2026[i]);
+    }
+}
 
 // --- Config Helpers ---
 void saveWiFiConfig() {
@@ -382,7 +399,7 @@ void enterState(State ns) {
     currentState = ns; M5.Display.fillScreen(BLACK); stateTimer = millis();
     switch (ns) {
         case STATE_BOOT:
-            M5.Display.setTextSize(2); M5.Display.drawCenterString("M5Stack CoreS3 SE", 160, 30);
+            M5.Display.setTextSize(2); M5.Display.drawCenterString("PROWAVE Diag MON", 160, 30);
             M5.Display.setTextColor(YELLOW); M5.Display.drawCenterString("Version: " FIRMWARE_VERSION, 160, 55);
             M5.Display.setTextColor(CYAN);
             { auto dt = M5.Rtc.getDateTime(); M5.Display.drawCenterString(String(dt.date.year)+"/"+String(dt.date.month)+"/"+String(dt.date.date)+" "+String(dt.time.hours)+":"+String(dt.time.minutes), 160, 85); }
@@ -440,6 +457,9 @@ void enterState(State ns) {
                 updateRunningUI();
                 Serial.printf("Running... Network OK. IP: %s\n", activeNet == NET_WIFI ? WiFi.localIP().toString().c_str() : Ethernet.localIP().toString().c_str());
             }
+            break;
+        case STATE_DIAG:
+            drawDiagDashboard();
             break;
         case STATE_SET_RTC:
             { auto dt = M5.Rtc.getDateTime(); rtcY = dt.date.year; rtcM = dt.date.month; rtcD = dt.date.date; rtcH = dt.time.hours; rtcMin = dt.time.minutes; rtcSetIdx = 0; }
@@ -539,6 +559,7 @@ void handleTouch() {
             }
             break;
         case STATE_RUNNING:
+            if (y < 40) { enterState(STATE_DIAG); return; } // Switch to DIAG mode
             if (y > 100 && y < 200) { 
                 if (x > 280) { // Scroll Buttons
                     if (y < 150) scrollOffset -= 80; else scrollOffset += 80;
@@ -568,6 +589,9 @@ void handleTouch() {
                     enterState(STATE_BOOT); 
                 } 
             }
+            break;
+        case STATE_DIAG:
+            enterState(STATE_RUNNING); // Return to RUNNING mode
             break;
     }
 }
@@ -600,8 +624,9 @@ void loop() {
             if (isOtaMode) enterState(STATE_OTA); else enterState(STATE_RUNNING);
         } else if (millis() - stateTimer > 15000) { M5.Display.fillScreen(RED); M5.Display.drawCenterString("Fail", 160, 110); delay(2000); enterState(STATE_SELECT_NET_TYPE); }
     }
-    if (currentState == STATE_RUNNING) {
-        updateClock(); if (!mqttClient.connected()) reconnectMqtt(); mqttClient.loop();
+    if (currentState == STATE_RUNNING || currentState == STATE_DIAG) {
+        if (currentState == STATE_RUNNING) updateClock(); 
+        if (!mqttClient.connected()) reconnectMqtt(); mqttClient.loop();
         if (millis() - lastPublishTime > 10000) { lastPublishTime = millis(); if (mqttClient.connected()) { char ts[32]; sprintf(ts, "Uptime:%lu", millis()/1000); mqttClient.publish(mqttTopicPub.c_str(), ts); } }
     }
     delay(10);
