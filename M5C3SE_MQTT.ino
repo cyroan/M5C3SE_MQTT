@@ -93,6 +93,7 @@ void drawDiagDashboard() {
     }
     
     M5.Display.setSwapBytes(true); 
+    bool anyActive = false;
     for (int i = 0; i < 12; i++) {
         int col = i % 4;
         int row = i / 4;
@@ -101,6 +102,7 @@ void drawDiagDashboard() {
         M5.Display.pushImage(x, y, iconSize, iconSize, icons_2026[i]);
         
         if (conditionActive[i]) {
+            anyActive = true;
             // Triggered: Normal brightness + Red Frame
             M5.Display.drawRect(x, y, iconSize, iconSize, RED);
             M5.Display.drawRect(x + 1, y + 1, iconSize - 2, iconSize - 2, RED);
@@ -108,6 +110,12 @@ void drawDiagDashboard() {
             // Untriggered: Dimmed display
             dimCanvas.pushSprite(&M5.Display, x, y, 160); // 160 is alpha (~63% dim)
         }
+    }
+
+    if (!anyActive) {
+        M5.Display.setTextSize(4);
+        M5.Display.setTextColor(GREEN);
+        M5.Display.drawCenterString("ALL PASS", 160, 100);
     }
 }
 
