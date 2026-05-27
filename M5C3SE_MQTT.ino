@@ -16,6 +16,7 @@
 
 // --- Global State ---
 bool conditionActive[12] = {false};
+float addr0 = 0, addr1 = 0, addr2 = 0, addr3 = 0, addr4 = 0; 
 M5Canvas dimCanvas(&M5.Display);
 
 // --- Configuration Files ---
@@ -59,10 +60,17 @@ NetworkType activeNet = NET_WIFI;
 enum State {
     STATE_BOOT, STATE_SELECT_NET_TYPE, STATE_SCAN_WIFI, STATE_SELECT_SSID,
     STATE_INPUT_PASSWORD, STATE_LAN_STATIC_INPUT, STATE_CONNECTING, STATE_OTA, STATE_RUNNING,
-    STATE_SET_RTC, STATE_SET_MQTT, STATE_DIAG
+    STATE_SET_RTC, STATE_SET_MQTT, STATE_DIAG, STATE_VALUE_DISPLAY, STATE_MODE_SELECT
 };
 
-State currentState = STATE_BOOT;
+State currentState = STATE_BOOT, previousState = STATE_BOOT;
+
+const char* conditionNames[12] = {
+    "不平衡", "不對心", "立式泵浦水漩", "平軸承油漩", "結構鬆動", 
+    "軸承座螺絲鬆動", "軸承座鬆動", "軸承損壞", "軸承滑套", "軸承鬆動", 
+    "齒輪箱異常", "定頻馬達轉子偏心"
+};
+
 unsigned long stateTimer = 0;
 String selectedSSID = "", wifiPassword = "";
 String storedOtaSsid = "", storedOtaPass = "";
@@ -75,6 +83,14 @@ int scanCount = 0, selectedSsidIdx = 0, kbdPage = 0;
 bool isOtaMode = false;
 int scrollOffset = 0;
 M5Canvas msgCanvas(&M5.Display);
+
+// --- Helpers ---
+void drawButton(int x, int y, int w, int h, const char* label, uint32_t color, int textSize = 2) {
+    M5.Display.fillRoundRect(x, y, w, h, 6, color);
+    M5.Display.setTextColor(WHITE);
+    M5.Display.setTextSize(textSize);
+    M5.Display.drawCenterString(label, x + w / 2, y + h / 2 - (textSize * 4));
+}
 
 // RTC/MQTT Setting variables
 int rtcY, rtcM, rtcD, rtcH, rtcMin, rtcSetIdx = 0; 
@@ -117,6 +133,63 @@ void drawDiagDashboard() {
         M5.Display.setTextColor(GREEN);
         M5.Display.drawCenterString("ALL PASS", 160, 100);
     }
+}
+
+void drawValueDashboard() {
+    M5.Display.fillScreen(BLACK);
+    M5.Display.setTextColor(WHITE);
+    M5.Display.setTextSize(2);
+    M5.Display.setCursor(10, 10); M5.Display.print("VALUE DISPLAY");
+    M5.Display.drawLine(0, 35, 320, 35, WHITE);
+
+    // Top Section: Address 0-4
+    int yStart = 45, yStep = 25;
+    M5.Display.setTextSize(2);
+    M5.Display.setCursor(15, yStart);        M5.Display.printf("X Velocity: %.2f mm/s", addr0);
+    M5.Display.setCursor(15, yStart + yStep);   M5.Display.printf("Y Velocity: %.2f mm/s", addr1);
+    M5.Display.setCursor(15, yStart + yStep*2); M5.Display.printf("Z Velocity: %.2f mm/s", addr2);
+    M5.Display.setCursor(15, yStart + yStep*3); M5.Display.printf("Temp:       %.3f C", addr3);
+    M5.Display.setCursor(15, yStart + yStep*4); M5.Display.printf("Speed:      %.1f Hz", addr4);
+
+    M5.Display.drawLine(0, 175, 320, 175, DARKGREY);
+
+    // Bottom Section: Diagnostic Text
+    M5.Display.setCursor(10, 185);
+    bool anyActive = false;
+    String activeIssues = "";
+    for (int i = 0; i < 12; i++) {
+        if (conditionActive[i]) {
+            if (anyActive) activeIssues += ", ";
+            activeIssues += conditionNames[i];
+            anyActive = true;
+        }
+    }
+
+    if (!anyActive) {
+        M5.Display.setTextColor(GREEN);
+        M5.Display.drawCenterString("狀態正常", 160, 200);
+    } else {
+        M5.Display.setTextColor(RED);
+        M5.Display.setTextSize(1);
+        M5.Display.setCursor(10, 195);
+        M5.Display.print("故障: ");
+        M5.Display.print(activeIssues);
+    }
+}
+
+void drawModeSelection() {
+    M5.Display.fillScreen(BLACK);
+    M5.Display.setTextColor(ORANGE);
+    M5.Display.setTextSize(2);
+    M5.Display.drawCenterString("SELECT DISPLAY MODE", 160, 20);
+
+    drawButton(20, 60, 280, 45, "MONITOR (MQTT)", BLUE);
+    drawButton(20, 115, 280, 45, "DIAGNOSTIC (ICONS)", GREEN);
+    drawButton(20, 170, 280, 45, "VALUES (DATA)", PURPLE);
+    
+    M5.Display.setTextSize(1);
+    M5.Display.setTextColor(LIGHTGREY);
+    M5.Display.drawCenterString("Auto-close in 5s", 160, 225);
 }
 
 // --- Config Helpers ---
@@ -215,13 +288,6 @@ void loadNetPref() {
 const char* kbdMap0 = "ABCDEFGHIJKLMNOPQRSTUVW<\x01"; // Slot 23=<, 24=\x01
 const char* kbdMap1 = "XYZ0123456789.-_/@: \x01\x02\n"; // Slot 21= , 22=\x01, 23=\x02, 24=\n
 const int KBD_COLS = 5, KBD_ROWS = 5, BTN_W = 60, BTN_H = 38, KBD_X = 10, KBD_Y = 45;
-
-void drawButton(int x, int y, int w, int h, const char* label, uint32_t color, int textSize = 2) {
-    M5.Display.fillRoundRect(x, y, w, h, 6, color);
-    M5.Display.setTextColor(WHITE);
-    M5.Display.setTextSize(textSize);
-    M5.Display.drawCenterString(label, x + w / 2, y + h / 2 - (textSize * 4));
-}
 
 void drawKeyboard() {
     M5.Display.fillRect(0, KBD_Y - 5, 320, 240 - (KBD_Y - 5), BLACK);
@@ -332,11 +398,22 @@ void mqttCallback(char* topic, byte* payload, unsigned long length) {
         for (int i = 0; i < 12; i++) conditionActive[i] = false;
         
         // Robust address search: supports root-level keys or nested MODBUS object keys (UPPER/lower case)
+        int a0 = doc["MODBUS"]["ADDRESS0"] | doc["MODBUS"]["Address0"] | doc["Address0"] | doc["ADDRESS0"] | 0;
+        int a1 = doc["MODBUS"]["ADDRESS1"] | doc["MODBUS"]["Address1"] | doc["Address1"] | doc["ADDRESS1"] | 0;
+        int a2 = doc["MODBUS"]["ADDRESS2"] | doc["MODBUS"]["Address2"] | doc["Address2"] | doc["ADDRESS2"] | 0;
+        int a3 = doc["MODBUS"]["ADDRESS3"] | doc["MODBUS"]["Address3"] | doc["Address3"] | doc["ADDRESS3"] | 0;
+        int a4 = doc["MODBUS"]["ADDRESS4"] | doc["MODBUS"]["Address4"] | doc["Address4"] | doc["ADDRESS4"] | 0;
         int a5 = doc["MODBUS"]["ADDRESS5"] | doc["MODBUS"]["Address5"] | doc["Address5"] | doc["ADDRESS5"] | 0;
         int a6 = doc["MODBUS"]["ADDRESS6"] | doc["MODBUS"]["Address6"] | doc["Address6"] | doc["ADDRESS6"] | 0;
         int a7 = doc["MODBUS"]["ADDRESS7"] | doc["MODBUS"]["Address7"] | doc["Address7"] | doc["ADDRESS7"] | 0;
         int a8 = doc["MODBUS"]["ADDRESS8"] | doc["MODBUS"]["Address8"] | doc["Address8"] | doc["ADDRESS8"] | 0;
         int a9 = doc["MODBUS"]["ADDRESS9"] | doc["MODBUS"]["Address9"] | doc["Address9"] | doc["ADDRESS9"] | 0;
+
+        addr0 = a0 * 0.01f;
+        addr1 = a1 * 0.01f;
+        addr2 = a2 * 0.01f;
+        addr3 = a3 * 0.001f;
+        addr4 = a4 * 0.1f;
 
         if (a5 == 1) conditionActive[0] = true; 
         else if (a5 == 2) conditionActive[4] = true; // 結構鬆動
@@ -372,6 +449,7 @@ void mqttCallback(char* topic, byte* payload, unsigned long length) {
         if (a9 == 1) conditionActive[10] = true;
 
         if (currentState == STATE_DIAG) drawDiagDashboard();
+        if (currentState == STATE_VALUE_DISPLAY) drawValueDashboard();
     }
 
     if (currentState == STATE_RUNNING) updateRunningUI();
@@ -541,6 +619,12 @@ void enterState(State ns) {
         case STATE_DIAG:
             drawDiagDashboard();
             break;
+        case STATE_VALUE_DISPLAY:
+            drawValueDashboard();
+            break;
+        case STATE_MODE_SELECT:
+            drawModeSelection();
+            break;
         case STATE_SET_RTC:
             { auto dt = M5.Rtc.getDateTime(); rtcY = dt.date.year; rtcM = dt.date.month; rtcD = dt.date.date; rtcH = dt.time.hours; rtcMin = dt.time.minutes; rtcSetIdx = 0; }
             drawRtcSetting(); break;
@@ -639,7 +723,7 @@ void handleTouch() {
             }
             break;
         case STATE_RUNNING:
-            if (y < 40) { enterState(STATE_DIAG); return; } // Switch to DIAG mode
+            if (y < 40) { previousState = currentState; enterState(STATE_MODE_SELECT); return; } 
             if (y > 100 && y < 200) { 
                 if (x > 280) { // Scroll Buttons
                     if (y < 150) scrollOffset -= 80; else scrollOffset += 80;
@@ -665,13 +749,21 @@ void handleTouch() {
                         scrollOffset = 0; updateRunningUI(); delay(150); 
                     } 
                 }
-                else if (x > 150 && x < 210) { // Narrowed HOME touch area
-                    enterState(STATE_BOOT); 
-                } 
+                else if (x > 150 && x < 210) { enterState(STATE_BOOT); } 
+            } else {
+                previousState = currentState; enterState(STATE_MODE_SELECT);
             }
             break;
         case STATE_DIAG:
-            enterState(STATE_RUNNING); // Return to RUNNING mode
+        case STATE_VALUE_DISPLAY:
+            previousState = currentState; enterState(STATE_MODE_SELECT);
+            break;
+        case STATE_MODE_SELECT:
+            if (x > 20 && x < 300) {
+                if (y > 60 && y < 105) enterState(STATE_RUNNING);
+                else if (y > 115 && y < 160) enterState(STATE_DIAG);
+                else if (y > 170 && y < 215) enterState(STATE_VALUE_DISPLAY);
+            }
             break;
     }
 }
@@ -704,7 +796,10 @@ void loop() {
             if (isOtaMode) enterState(STATE_OTA); else enterState(STATE_RUNNING);
         } else if (millis() - stateTimer > 15000) { M5.Display.fillScreen(RED); M5.Display.drawCenterString("Fail", 160, 110); delay(2000); enterState(STATE_SELECT_NET_TYPE); }
     }
-    if (currentState == STATE_RUNNING || currentState == STATE_DIAG) {
+    if (currentState == STATE_MODE_SELECT) {
+        if (millis() - stateTimer > 5000) enterState(previousState);
+    }
+    if (currentState == STATE_RUNNING || currentState == STATE_DIAG || currentState == STATE_VALUE_DISPLAY) {
         if (currentState == STATE_RUNNING) updateClock(); 
         if (!mqttClient.connected()) reconnectMqtt(); mqttClient.loop();
         if (millis() - lastPublishTime > 10000) { lastPublishTime = millis(); if (mqttClient.connected()) { char ts[32]; sprintf(ts, "Uptime:%lu", millis()/1000); mqttClient.publish(mqttTopicPub.c_str(), ts); } }
