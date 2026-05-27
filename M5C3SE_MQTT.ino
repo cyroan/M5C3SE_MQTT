@@ -64,14 +64,14 @@ enum State {
 };
 
 State currentState = STATE_BOOT, previousState = STATE_BOOT;
-
 const char* conditionNames[12] = {
-    "不平衡", "不對心", "立式泵浦水漩", "平軸承油漩", "結構鬆動", 
-    "軸承座螺絲鬆動", "軸承座鬆動", "軸承損壞", "軸承滑套", "軸承鬆動", 
-    "齒輪箱異常", "定頻馬達轉子偏心"
+    "Unbalance", "Misalignment", "Vortex problem", "Oil Whirl", "Structural looseness", 
+    "Bearing housing bolts looseness", "Bearing housing looseness", "Bearing damage", "Bearing sleeve", "Bearing looseness", 
+    "Gearbox damage", "rotor eccentricity"
 };
 
 unsigned long stateTimer = 0;
+int scrollOffset = 0, valueScrollOffset = 0;
 String selectedSSID = "", wifiPassword = "";
 String storedOtaSsid = "", storedOtaPass = "";
 String storedRunSsid = "", storedRunPass = "";
@@ -81,7 +81,6 @@ byte mac[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0x89};
 M5Module_LAN LAN;
 int scanCount = 0, selectedSsidIdx = 0, kbdPage = 0;
 bool isOtaMode = false;
-int scrollOffset = 0;
 M5Canvas msgCanvas(&M5.Display);
 
 // --- Helpers ---
@@ -138,14 +137,13 @@ void drawDiagDashboard() {
 void drawValueDashboard() {
     M5.Display.fillScreen(BLACK);
     M5.Display.setTextColor(WHITE);
-    M5.Display.setFont(&fonts::Font2); // Standard font for headers
+    M5.Display.setFont(&fonts::Font2); 
     M5.Display.setTextSize(2);
     M5.Display.setCursor(10, 10); M5.Display.print("VALUE DISPLAY");
     M5.Display.drawLine(0, 35, 320, 35, WHITE);
 
     // Top Section: Address 0-4
     int yStart = 45, yStep = 25;
-    M5.Display.setTextSize(2);
     M5.Display.setCursor(15, yStart);        M5.Display.printf("X Velocity: %.2f mm/s", addr0);
     M5.Display.setCursor(15, yStart + yStep);   M5.Display.printf("Y Velocity: %.2f mm/s", addr1);
     M5.Display.setCursor(15, yStart + yStep*2); M5.Display.printf("Z Velocity: %.2f mm/s", addr2);
@@ -154,30 +152,54 @@ void drawValueDashboard() {
 
     M5.Display.drawLine(0, 175, 320, 175, DARKGREY);
 
-    // Bottom Section: Diagnostic Text
-    M5.Display.setFont(&fonts::efontCN_12); // Switch to Chinese-capable font
+    // Bottom Section: Diagnostic Text with Scrolling
+    int diagAreaY = 180, diagAreaH = 55;
     bool anyActive = false;
-    String activeIssues = "";
+    std::vector<String> activeList;
     for (int i = 0; i < 12; i++) {
         if (conditionActive[i]) {
-            if (anyActive) activeIssues += ", ";
-            activeIssues += conditionNames[i];
+            activeList.push_back(conditionNames[i]);
             anyActive = true;
         }
     }
 
     if (!anyActive) {
         M5.Display.setTextColor(GREEN);
-        M5.Display.setTextSize(2);
-        M5.Display.drawCenterString("狀態正常", 160, 195);
+        M5.Display.drawCenterString("Status Normal", 160, 200);
     } else {
         M5.Display.setTextColor(RED);
         M5.Display.setTextSize(1);
-        M5.Display.setCursor(10, 185);
-        M5.Display.print("故障: ");
-        M5.Display.print(activeIssues);
+        
+        // Use a canvas to calculate height and handle clipping
+        static M5Canvas diagCanvas(&M5.Display);
+        diagCanvas.createSprite(280, 500); // Temporary large height
+        diagCanvas.fillSprite(BLACK);
+        diagCanvas.setCursor(0, 0);
+        diagCanvas.setTextColor(RED);
+        diagCanvas.println("FAULT DETECTED:");
+        for (const auto& issue : activeList) {
+            diagCanvas.print("- ");
+            diagCanvas.println(issue);
+        }
+        
+        int contentH = diagCanvas.getCursorY();
+        if (valueScrollOffset < 0) valueScrollOffset = 0;
+        if (contentH > diagAreaH && valueScrollOffset > contentH - diagAreaH) valueScrollOffset = contentH - diagAreaH;
+        if (contentH <= diagAreaH) valueScrollOffset = 0;
+
+        M5.Display.setClipRect(10, diagAreaY, 280, diagAreaH);
+        diagCanvas.pushSprite(10, diagAreaY - valueScrollOffset);
+        M5.Display.clearClipRect();
+        diagCanvas.deleteSprite();
+
+        // Scroll indicators
+        if (contentH > diagAreaH) {
+            M5.Display.setTextColor(BLUE);
+            if (valueScrollOffset > 0) M5.Display.drawCenterString("^", 305, diagAreaY + 5);
+            if (valueScrollOffset < contentH - diagAreaH) M5.Display.drawCenterString("v", 305, diagAreaY + 35);
+        }
     }
-    M5.Display.setFont(&fonts::Font0); // Reset font
+    M5.Display.setFont(&fonts::Font0); 
 }
 
 void drawModeSelection() {
@@ -758,7 +780,15 @@ void handleTouch() {
             }
             break;
         case STATE_DIAG:
+            previousState = currentState; enterState(STATE_MODE_SELECT);
+            break;
         case STATE_VALUE_DISPLAY:
+            if (x > 280) { // Value Scroll Buttons
+                if (y > 180) {
+                    if (y < 210) valueScrollOffset -= 20; else valueScrollOffset += 20;
+                    drawValueDashboard(); delay(100); return;
+                }
+            }
             previousState = currentState; enterState(STATE_MODE_SELECT);
             break;
         case STATE_MODE_SELECT:
