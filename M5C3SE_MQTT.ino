@@ -138,6 +138,7 @@ void drawDiagDashboard() {
 void drawValueDashboard() {
     M5.Display.fillScreen(BLACK);
     M5.Display.setTextColor(WHITE);
+    M5.Display.setFont(&fonts::Font2); // Standard font for headers
     M5.Display.setTextSize(2);
     M5.Display.setCursor(10, 10); M5.Display.print("VALUE DISPLAY");
     M5.Display.drawLine(0, 35, 320, 35, WHITE);
@@ -154,7 +155,7 @@ void drawValueDashboard() {
     M5.Display.drawLine(0, 175, 320, 175, DARKGREY);
 
     // Bottom Section: Diagnostic Text
-    M5.Display.setCursor(10, 185);
+    M5.Display.setFont(&fonts::efontCN_12); // Switch to Chinese-capable font
     bool anyActive = false;
     String activeIssues = "";
     for (int i = 0; i < 12; i++) {
@@ -167,14 +168,16 @@ void drawValueDashboard() {
 
     if (!anyActive) {
         M5.Display.setTextColor(GREEN);
-        M5.Display.drawCenterString("狀態正常", 160, 200);
+        M5.Display.setTextSize(2);
+        M5.Display.drawCenterString("狀態正常", 160, 195);
     } else {
         M5.Display.setTextColor(RED);
         M5.Display.setTextSize(1);
-        M5.Display.setCursor(10, 195);
+        M5.Display.setCursor(10, 185);
         M5.Display.print("故障: ");
         M5.Display.print(activeIssues);
     }
+    M5.Display.setFont(&fonts::Font0); // Reset font
 }
 
 void drawModeSelection() {
