@@ -89,7 +89,7 @@ void drawDiagDashboard() {
     
     if (dimCanvas.width() == 0) {
         dimCanvas.createSprite(iconSize, iconSize);
-        dimCanvas.fillSprite(BLACK);
+        dimCanvas.fillSprite(0x000F); // Navy Blue (Dark Blue)
     }
     
     M5.Display.setSwapBytes(true); 
