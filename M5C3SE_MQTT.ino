@@ -10,8 +10,13 @@
 #include <SD.h>
 #include <LittleFS.h>
 #include <M5Module_LAN.h>
+#include <ArduinoJson.h>
 #include "version.h"
 #include "icons_2026.h"
+
+// --- Global State ---
+bool conditionActive[12] = {false};
+M5Canvas dimCanvas(&M5.Display);
 
 // --- Configuration Files ---
 const char* updateUrl = "https://raw.githubusercontent.com/cyroan/M5C3SE_MQTT/master/M5C3SE_MQTT.ino.m5stack_cores3.bin";
@@ -81,6 +86,12 @@ void drawDiagDashboard() {
     int iconSize = 78;
     int startX = 4; // (320 - 4*78) / 2 = 4
     int startY = 3; // (240 - 3*78) / 2 = 3
+    
+    if (dimCanvas.width() == 0) {
+        dimCanvas.createSprite(iconSize, iconSize);
+        dimCanvas.fillSprite(BLACK);
+    }
+    
     M5.Display.setSwapBytes(true); 
     for (int i = 0; i < 12; i++) {
         int col = i % 4;
@@ -88,6 +99,15 @@ void drawDiagDashboard() {
         int x = startX + col * iconSize;
         int y = startY + row * iconSize;
         M5.Display.pushImage(x, y, iconSize, iconSize, icons_2026[i]);
+        
+        if (conditionActive[i]) {
+            // Triggered: Normal brightness + Red Frame
+            M5.Display.drawRect(x, y, iconSize, iconSize, RED);
+            M5.Display.drawRect(x + 1, y + 1, iconSize - 2, iconSize - 2, RED);
+        } else {
+            // Untriggered: Dimmed display
+            dimCanvas.pushSprite(&M5.Display, x, y, 160); // 160 is alpha (~63% dim)
+        }
     }
 }
 
@@ -294,6 +314,58 @@ void mqttCallback(char* topic, byte* payload, unsigned long length) {
         File file = SD.open("/RECEIVR.TXT", FILE_APPEND);
         if (file) { file.printf("[%04d-%02d-%02d %s] T: %s | M: %s\n", dt.date.year, dt.date.month, dt.date.date, ts, topic, pl.c_str()); file.close(); }
     }
+
+    // --- Diagnostic JSON Logic ---
+    if (String(topic) == "Prowave/IVM") {
+        JsonDocument doc;
+        DeserializationError error = deserializeJson(doc, payload, length);
+        if (error) return; // Do nothing if parsing fails
+
+        for (int i = 0; i < 12; i++) conditionActive[i] = false;
+        
+        // Robust address search: supports root-level keys or nested MODBUS object keys (UPPER/lower case)
+        int a5 = doc["MODBUS"]["ADDRESS5"] | doc["MODBUS"]["Address5"] | doc["Address5"] | doc["ADDRESS5"] | 0;
+        int a6 = doc["MODBUS"]["ADDRESS6"] | doc["MODBUS"]["Address6"] | doc["Address6"] | doc["ADDRESS6"] | 0;
+        int a7 = doc["MODBUS"]["ADDRESS7"] | doc["MODBUS"]["Address7"] | doc["Address7"] | doc["ADDRESS7"] | 0;
+        int a8 = doc["MODBUS"]["ADDRESS8"] | doc["MODBUS"]["Address8"] | doc["Address8"] | doc["ADDRESS8"] | 0;
+        int a9 = doc["MODBUS"]["ADDRESS9"] | doc["MODBUS"]["Address9"] | doc["Address9"] | doc["ADDRESS9"] | 0;
+
+        if (a5 == 1) conditionActive[0] = true; 
+        else if (a5 == 2) conditionActive[4] = true; // 結構鬆動
+        else if (a5 == 3) conditionActive[9] = true;
+        else if (a5 == 4) conditionActive[8] = true;
+        else if (a5 == 5) conditionActive[6] = true;
+        else if (a5 == 6) conditionActive[5] = true;
+        else if (a5 == 7) conditionActive[7] = true;
+        else if (a5 == 8) { conditionActive[0] = true; conditionActive[9] = true; }
+        else if (a5 == 9) { conditionActive[0] = true; conditionActive[8] = true; }
+        else if (a5 == 10) { conditionActive[0] = true; conditionActive[6] = true; }
+        else if (a5 == 11) { conditionActive[0] = true; conditionActive[5] = true; }
+        else if (a5 == 12) { conditionActive[0] = true; conditionActive[7] = true; }
+        else if (a5 == 13) { conditionActive[4] = true; conditionActive[9] = true; }
+        else if (a5 == 14) { conditionActive[4] = true; conditionActive[8] = true; }
+        else if (a5 == 15) { conditionActive[4] = true; conditionActive[6] = true; }
+        else if (a5 == 16) { conditionActive[4] = true; conditionActive[5] = true; }
+        else if (a5 == 17) { conditionActive[4] = true; conditionActive[7] = true; }
+        else if (a5 == 18) { conditionActive[9] = true; conditionActive[8] = true; }
+        else if (a5 == 19) { conditionActive[9] = true; conditionActive[6] = true; }
+        else if (a5 == 20) { conditionActive[9] = true; conditionActive[5] = true; }
+        else if (a5 == 21) { conditionActive[9] = true; conditionActive[7] = true; }
+        else if (a5 == 22) { conditionActive[8] = true; conditionActive[6] = true; }
+        else if (a5 == 23) { conditionActive[8] = true; conditionActive[5] = true; }
+        else if (a5 == 24) { conditionActive[8] = true; conditionActive[7] = true; }
+        else if (a5 == 25) { conditionActive[6] = true; conditionActive[5] = true; }
+        else if (a5 == 26) { conditionActive[6] = true; conditionActive[7] = true; }
+        else if (a5 == 27) { conditionActive[5] = true; conditionActive[7] = true; }
+
+        if (a6 == 1) conditionActive[1] = true;
+        if (a7 == 1) conditionActive[2] = true;
+        if (a8 == 1) conditionActive[11] = true;
+        if (a9 == 1) conditionActive[10] = true;
+
+        if (currentState == STATE_DIAG) drawDiagDashboard();
+    }
+
     if (currentState == STATE_RUNNING) updateRunningUI();
 }
 

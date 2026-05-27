@@ -22,7 +22,12 @@
 
 ## 版本演进 (Development Log)
 
-### v1.1.17 (Latest)
+### v1.1.18 (Latest)
+- **MQTT JSON 解析**：導入 `ArduinoJson` 函式庫，支援解析 `Prowave/IVM` 主題之 JSON 資料（Address 5-9）。
+- **DIAG 畫面強化**：實作圖示狀態顯示。觸發故障時顯示紅框並維持正常亮度；未觸發時則以變暗效果顯示。
+- **Address 映射實作**：根據 `condition.txt` 完整實作 27 種 Address 5 組合邏輯及 Address 6-9 單一映射。
+
+### v1.1.17
 - **新增 DIAG 模式**：引入圖形化診斷界面（4x3 圖示矩陣），參考自 `M5_PDM_PLOT` 專案。
 - **UI 切換邏輯**：在 `RUNNING` 模式點擊頂部標題區域即可切換至 `DIAG` 模式，點擊診斷畫面任意處可返回監控界面。
 - **二進位檔同步**：更新根目錄 `.bin` 檔案以支援全自動 OTA 更新。
