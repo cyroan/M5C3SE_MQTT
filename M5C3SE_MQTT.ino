@@ -165,10 +165,11 @@ void drawValueDashboard() {
 
     if (!anyActive) {
         M5.Display.setTextColor(GREEN);
+        M5.Display.setTextSize(2);
         M5.Display.drawCenterString("Status Normal", 160, 200);
     } else {
         M5.Display.setTextColor(RED);
-        M5.Display.setTextSize(1);
+        M5.Display.setTextSize(2);
         
         // Use a canvas to calculate height and handle clipping
         static M5Canvas diagCanvas(&M5.Display);
@@ -176,9 +177,8 @@ void drawValueDashboard() {
         diagCanvas.fillSprite(BLACK);
         diagCanvas.setCursor(0, 0);
         diagCanvas.setTextColor(RED);
-        diagCanvas.println("FAULT DETECTED:");
+        diagCanvas.setTextSize(2);
         for (const auto& issue : activeList) {
-            diagCanvas.print("- ");
             diagCanvas.println(issue);
         }
         
