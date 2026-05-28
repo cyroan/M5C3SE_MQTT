@@ -1,16 +1,16 @@
 圖
-1.不平衡
-2.不對心
-3.立式泵浦水漩
-4.平軸承油漩
-5.基礎鬆動
-6.軸承座螺絲鬆動
-7.軸承座鬆動
-8.軸承損壞
-9.軸承滑套
-10.軸承鬆動
-11.齒輪箱異常
-12.定頻馬達轉子偏心
+1.不平衡(Unbalance)
+2.不對心(Misalignment)
+3.立式泵浦水漩(Vortex problem​)
+4.平軸承油漩(Oil Whirl)
+5.基礎鬆動(Structural looseness)
+6.軸承座螺絲鬆動(Bearing housing bolts looseness)
+7.軸承座鬆動(Bearing housing loosenes)
+8.軸承損壞​(Bearing damage)
+9.軸承滑套(Bearing sleeve)
+10.軸承鬆動(Bearing looseness)
+11.齒輪箱異常(Gearbox damage)
+12.定頻馬達轉子偏心(rotor eccentricity)
 
 Address5
 0:無結果
@@ -48,7 +48,7 @@ Address6
 
 Address7
 0:無結果
-1:立式泵浦水漩
+1:立式泵浦水漩+平軸承油漩
 
 Address8
 0:無結果

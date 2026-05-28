@@ -16,6 +16,7 @@
 
 // --- Global State ---
 bool conditionActive[12] = {false};
+bool alarmX = false, alarmY = false, alarmZ = false;
 float addr0 = 0, addr1 = 0, addr2 = 0, addr3 = 0, addr4 = 0; 
 M5Canvas dimCanvas(&M5.Display);
 
@@ -144,11 +145,23 @@ void drawValueDashboard() {
 
     // Top Section: Address 0-4
     int yStart = 45, yStep = 25;
-    M5.Display.setCursor(15, yStart);        M5.Display.printf("X Velocity: %.2f mm/s", addr0);
-    M5.Display.setCursor(15, yStart + yStep);   M5.Display.printf("Y Velocity: %.2f mm/s", addr1);
-    M5.Display.setCursor(15, yStart + yStep*2); M5.Display.printf("Z Velocity: %.2f mm/s", addr2);
-    M5.Display.setCursor(15, yStart + yStep*3); M5.Display.printf("Temp:       %.3f C", addr3);
-    M5.Display.setCursor(15, yStart + yStep*4); M5.Display.printf("Speed:      %.1f Hz", addr4);
+    M5.Display.setCursor(15, yStart);
+    M5.Display.setTextColor(WHITE); M5.Display.print("X Velocity: ");
+    M5.Display.setTextColor(alarmX ? RED : WHITE); M5.Display.printf("%.2f mm/s", addr0);
+
+    M5.Display.setCursor(15, yStart + yStep);
+    M5.Display.setTextColor(WHITE); M5.Display.print("Y Velocity: ");
+    M5.Display.setTextColor(alarmY ? RED : WHITE); M5.Display.printf("%.2f mm/s", addr1);
+
+    M5.Display.setCursor(15, yStart + yStep*2);
+    M5.Display.setTextColor(WHITE); M5.Display.print("Z Velocity: ");
+    M5.Display.setTextColor(alarmZ ? RED : WHITE); M5.Display.printf("%.2f mm/s", addr2);
+
+    M5.Display.setCursor(15, yStart + yStep*3);
+    M5.Display.setTextColor(WHITE); M5.Display.printf("Temp:       %.3f C", addr3);
+
+    M5.Display.setCursor(15, yStart + yStep*4);
+    M5.Display.setTextColor(WHITE); M5.Display.printf("Speed:      %.0f RPM", addr4);
 
     M5.Display.drawLine(0, 175, 320, 175, DARKGREY);
 
@@ -438,7 +451,11 @@ void mqttCallback(char* topic, byte* payload, unsigned long length) {
         addr1 = a1 * 0.01f;
         addr2 = a2 * 0.01f;
         addr3 = a3 * 0.001f;
-        addr4 = a4 * 0.1f;
+        addr4 = a4 * 6.0f; // Scale to RPM
+
+        alarmX = (doc["RawData"]["AlarmX"] | doc["MODBUS"]["RawData"]["AlarmX"] | doc["AlarmX"] | 0) == 1;
+        alarmY = (doc["RawData"]["AlarmY"] | doc["MODBUS"]["RawData"]["AlarmY"] | doc["AlarmY"] | 0) == 1;
+        alarmZ = (doc["RawData"]["AlarmZ"] | doc["MODBUS"]["RawData"]["AlarmZ"] | doc["AlarmZ"] | 0) == 1;
 
         if (a5 == 1) conditionActive[0] = true; 
         else if (a5 == 2) conditionActive[4] = true; // 結構鬆動
