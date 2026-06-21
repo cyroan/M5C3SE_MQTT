@@ -1,0 +1,61 @@
+graph TD
+    %% Main sketch
+    INO["M5C3SE_MQTT.ino (Main Loop & Touch Router)"]
+
+    %% Configuration Management Module
+    subgraph ConfigModule ["Configuration Management"]
+        CONFIG_H["config_mgr.h"]
+        CONFIG_CPP["config_mgr.cpp"]
+        CONFIG_H --- CONFIG_CPP
+    end
+
+    %% Network Module
+    subgraph NetModule ["Network Manager"]
+        NET_H["network_mgr.h"]
+        NET_CPP["network_mgr.cpp"]
+        NET_H --- NET_CPP
+    end
+
+    %% MQTT Module
+    subgraph MqttModule ["MQTT Manager"]
+        MQTT_H["mqtt_mgr.h"]
+        MQTT_CPP["mqtt_mgr.cpp"]
+        MQTT_H --- MQTT_CPP
+    end
+
+    %% Diagnosis Module
+    subgraph DiagModule ["Diagnosis Manager"]
+        DIAG_H["diag_mgr.h"]
+        DIAG_CPP["diag_mgr.cpp"]
+        DIAG_H --- DIAG_CPP
+    end
+
+    %% GUI Module
+    subgraph GuiModule ["GUI & Rendering"]
+        GUI_H["gui.h"]
+        GUI_CPP["gui.cpp"]
+        GUI_H --- GUI_CPP
+    end
+
+    %% OTA Module
+    subgraph OtaModule ["OTA Update Manager"]
+        OTA_H["ota_mgr.h"]
+        OTA_CPP["ota_mgr.cpp"]
+        OTA_H --- OTA_CPP
+    end
+
+    %% Relationships / Dependencies
+    INO --> CONFIG_H
+    INO --> NET_H
+    INO --> MQTT_H
+    INO --> GUI_H
+    INO --> DIAG_H
+    INO --> OTA_H
+
+    NET_H --> CONFIG_H
+    MQTT_H --> CONFIG_H
+    MQTT_H --> NET_H
+    GUI_H --> CONFIG_H
+    GUI_H --> DIAG_H
+    DIAG_H --> CONFIG_H
+    OTA_H --> CONFIG_H
