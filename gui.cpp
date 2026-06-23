@@ -93,7 +93,11 @@ void drawValueDashboard() {
     M5.Display.setTextColor(WHITE); M5.Display.printf("Temp:       %.3f C", addr3);
 
     M5.Display.setCursor(15, yStart + yStep*4);
-    M5.Display.setTextColor(WHITE); M5.Display.printf("Speed:      %.0f RPM", addr4);
+    if (showSpeed) {
+        M5.Display.setTextColor(WHITE); M5.Display.printf("Speed:      %.0f RPM", addr4);
+    } else {
+        M5.Display.setTextColor(DARKGREY); M5.Display.print("Speed:      [Hidden]");
+    }
 
     M5.Display.drawLine(0, 175, 320, 175, DARKGREY);
 

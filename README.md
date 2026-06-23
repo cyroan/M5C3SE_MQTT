@@ -22,7 +22,12 @@
 
 ## 版本演進 (Development Log)
 
-### v1.1.27 (Latest)
+### v1.1.28 (Latest)
+- **Speed 顯示切換與持久化**：
+  - **切換功能**：在 VALUES 數值顯示模式下，點擊 Speed 顯示行可切換是否顯示（隱藏時顯示 `[Hidden]` 灰字）。
+  - **設定保存**：設定狀態會寫入 SD 卡的 `/gui_pref.txt` 中，開機時自動載入。
+
+### v1.1.27
 - **架構重構與模組化**：
   - **模組拆分**：將單一龐大的 `M5C3SE_MQTT.ino` 拆分為 `config_mgr`、`network_mgr`、`mqtt_mgr`、`diag_mgr`、`gui` 與 `ota_mgr` 等 5 大模組。
   - **狀態解耦**：引進 `state.h` 集中管理狀態機與切換邏輯，降低模組間的耦合度。

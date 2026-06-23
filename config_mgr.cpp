@@ -20,6 +20,7 @@ String lanGW = "192.168.1.1";
 String lanMask = "255.255.255.0";
 String lanDNS = "1.1.1.1";
 NetworkType activeNet = NET_WIFI;
+bool showSpeed = true;
 
 bool sdAvailable = false;
 byte mac[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0x89};
@@ -128,6 +129,25 @@ void loadNetPref() {
     if (file) {
         String s = file.readStringUntil('\n'); s.trim();
         if (s != "") activeNet = (NetworkType)s.toInt();
+        file.close();
+    }
+}
+
+void saveGuiConfig() {
+    if (!sdAvailable) return;
+    File file = SD.open("/gui_pref.txt", FILE_WRITE);
+    if (file) {
+        file.println(showSpeed ? "1" : "0");
+        file.close();
+    }
+}
+
+void loadGuiConfig() {
+    if (!sdAvailable || !SD.exists("/gui_pref.txt")) return;
+    File file = SD.open("/gui_pref.txt", FILE_READ);
+    if (file) {
+        String s = file.readStringUntil('\n'); s.trim();
+        if (s != "") showSpeed = (s == "1");
         file.close();
     }
 }

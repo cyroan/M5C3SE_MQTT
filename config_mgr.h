@@ -41,6 +41,7 @@ extern String lanGW;
 extern String lanMask;
 extern String lanDNS;
 extern NetworkType activeNet;
+extern bool showSpeed;
 
 extern bool sdAvailable;
 extern byte mac[];
@@ -54,5 +55,7 @@ void saveMQTTConfig();
 void loadMQTTConfig();
 void saveNetPref();
 void loadNetPref();
+void saveGuiConfig();
+void loadGuiConfig();
 
 #endif // CONFIG_MGR_H

@@ -413,6 +413,13 @@ void handleTouch() {
             break;
             
         case STATE_VALUE_DISPLAY:
+            if (x < 280 && y > 140 && y < 170) {
+                showSpeed = !showSpeed;
+                saveGuiConfig();
+                drawValueDashboard();
+                delay(150);
+                return;
+            }
             if (x > 280) { // Value Scroll Buttons
                 if (y > 180) {
                     if (y < 210) valueScrollOffset -= 20; else valueScrollOffset += 20;
@@ -446,6 +453,7 @@ void setup() {
     loadLANConfig(); 
     loadMQTTConfig(); 
     loadNetPref();
+    loadGuiConfig();
     
     initMqtt();
     
