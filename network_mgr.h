@@ -13,5 +13,6 @@ extern M5Module_LAN LAN;
 void startNetworkConnection(const String& selectedSSID, const String& wifiPassword);
 bool isNetworkConnected();
 String getLocalIPString();
+String getGatewayIPString();
 
 #endif // NETWORK_MGR_H

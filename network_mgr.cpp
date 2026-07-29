@@ -43,3 +43,11 @@ String getLocalIPString() {
         return Ethernet.localIP().toString();
     }
 }
+
+String getGatewayIPString() {
+    if (activeNet == NET_WIFI) {
+        return WiFi.gatewayIP().toString();
+    } else {
+        return Ethernet.gatewayIP().toString();
+    }
+}

@@ -22,31 +22,62 @@
     <div class="feature-box">
         <p>開機後進入引導界面。若 <strong>30 秒</strong> 內無觸碰操作，系統將自動啟動：</p>
         <ul>
-            <li><strong>連線記憶</strong>：系統會自動使用最後一次成功連線的介面（WIFI 或 LAN）。</li>
-            <li><strong>連線診斷</strong>：在 <code>Connecting...</code> 畫面會以<span class="debug-text">黃色字體</span>顯示當前的 SSID、密碼及連線模式，便於排查 SD 卡設定問題。</li>
+            <li><strong>連線記憶與無 SD 卡相容</strong>：若無 SD 卡，系統自動預設運行網路為 <code>LAN (DHCP)</code>。連線成功後，自動將 <strong>Gateway IP</strong> 設定為 MQTT Broker 的伺服器 IP，連接埠預設為 <code>1883</code>。</li>
+            <li><strong>連線診斷</strong>：在 <code>Connecting...</code> 畫面會以<span class="debug-text">黃色字體</span>顯示當前的 SSID、密碼及連線模式，便於排查設定問題。</li>
             <li><strong>防衝突機制</strong>：若已手動進入 UPDATE 模式，自動運行計時器將自動禁用，確保更新不被中斷。</li>
         </ul>
     </div>
 
-    <h2>2. MQTT 監控模式 (RUN)</h2>
+    <h2>2. MQTT 監控與模式切換 (RUN & Mode Selection)</h2>
     <ul>
-        <li>點擊 <span class="btn-ref green">RUN</span> 進入網路選擇界面。</li>
-        <li><strong>WIFI</strong>：掃描並連接無線網路（支持多頁滾動選擇）。</li>
-        <li><strong>LAN (DHCP)</strong>：使用有線模組自動獲取 IP。</li>
-        <li><strong>LAN (STATIC)</strong>：手動輸入靜態 IP 配置。</li>
+        <li>點擊 <span class="btn-ref green">RUN</span> 進入網路選擇界面（支援 WiFi / LAN DHCP / LAN STATIC）。</li>
+        <li><strong>動態字體加大</strong>：當接收到的 Topic 符合 <code>PW/#</code>、<code>Advantech/#</code> 或包含 <code>RSSI</code>（不限大小寫，含新舊歷史訊息）時，監控內文字體自動加大一號至 <strong>TextSize 3</strong> 方便閱讀。</li>
+        <li>在監控畫面點擊頂部標題或螢幕，即可彈出 <strong>橘色模式選擇選單</strong>：
+            <ul>
+                <li><span class="btn-ref blue">MONITOR (MQTT)</span>：MQTT 文本消息監控與歷史紀錄。</li>
+                <li><span class="btn-ref green">DIAGNOSTIC (ICONS)</span>：4x3 圖示矩陣診斷界面。</li>
+                <li><span class="btn-ref purple">VALUES (DATA)</span>：物理量數據與故障列表。</li>
+            </ul>
+        </li>
     </ul>
 
-    <h2>3. 歷史紀錄回顧 (Review)</h2>
+    <h2>3. 診斷圖示模式 (DIAGNOSTIC Mode)</h2>
     <div class="feature-box">
-        <p>進入監控界面後，系統會自動保留最近 <strong>10 筆</strong> 接收到的消息：</p>
+        <p>提供 4x3 圖示陣列，直觀顯示設備故障狀態（Display Position 排列）：</p>
+        <table border="1" style="width:100%; border-collapse:collapse; text-align:center; margin-top:10px; font-size:0.85em;">
+            <tr style="background:#e9ecef;"><th>列 \ 欄</th><th>Col 1</th><th>Col 2</th><th>Col 3</th><th>Col 4</th></tr>
+            <tr><td>Row 1</td><td>6. Bolts looseness</td><td>10. Bearing looseness</td><td>7. Housing looseness</td><td>9. Bearing sleeve</td></tr>
+            <tr><td>Row 2</td><td>8. Bearing damage</td><td>5. Structural looseness</td><td>2. Misalignment</td><td>1. Unbalance</td></tr>
+            <tr><td>Row 3</td><td>4. Oil Whirl</td><td>11. Gearbox damage</td><td>3. Vortex problem</td><td>12. Rotor eccentricity</td></tr>
+        </table>
         <ul>
-            <li>點擊右下角 <span class="btn-ref blue">UP</span>：查看上一筆歷史數據（修正回溯邏輯）。</li>
-            <li>點擊右下角 <span class="btn-ref blue">DN</span>：查看較新的數據。翻至最新一筆時會自動切換回實時監控。</li>
-            <li>畫面頂部會顯示 <code>[1]</code> ~ <code>[10]</code> 提示當前回顧索引。</li>
+            <li><strong>故障觸發</strong>：對應圖示恢復全亮並加上<span style="color:red; font-weight:bold;">紅色邊框</span>。支持 Address 7（水漩 + 油漩）雙重同時亮框。</li>
+            <li><strong>正常狀態</strong>：未觸發之圖示以暗藍色顯示；若無任何異常，畫面中央顯示大型綠字 <strong>ALL PASS</strong>。</li>
         </ul>
     </div>
 
-    <h2>4. 設定功能</h2>
+    <h2>4. 數值物理量模式 (VALUES Mode)</h2>
+    <div class="feature-box">
+        <ul>
+            <li><strong>上半部物理量</strong>：即時顯示 X/Y/Z 速度 (mm/s)、溫度 (°C) 及轉速 (RPM)。</li>
+            <li><strong>警報連動</strong>：若觸發 AlarmX/Y/Z 警報，速度數值將以<span class="debug-text">紅色字體</span>高亮提醒。</li>
+            <li><strong>轉速隱藏切換</strong>：點擊 Speed 行可切換顯示/隱藏 `[Hidden]`，設定將保存於 SD 卡 <code>/gui_pref.txt</code>。</li>
+            <li><strong>下半部診斷文字</strong>：列出當前異常項目。當項目過多時，可透過右側藍色箭頭 (<code>^</code>/<code>v</code>) 進行觸控捲動查看。無異常時顯示 <strong>Status Normal</strong>。</li>
+        </ul>
+    </div>
+
+    <h2>5. 歷史紀錄回顧 (Review)</h2>
+    <div class="feature-box">
+        <p>進入監控界面後，系統會自動保留最近 <strong>10 筆</strong> 接收到的消息：</p>
+        <ul>
+            <li>點擊右下角 <span class="btn-ref blue">UP</span>：查看上一筆歷史數據。</li>
+            <li>點擊右下角 <span class="btn-ref blue">DN</span>：查看較新的數據。翻至最新一筆時會自動切換回實時監控。</li>
+            <li>畫面頂部會顯示 <code>[1]</code> ~ <code>[10]</code> 提示當前回顧索引。</li>
+            <li><strong>防空存機制</strong>：無 SD 卡時收到訊息自動跳過檔案儲存操作（`/RECEIVR.TXT`）。</li>
+        </ul>
+    </div>
+
+    <h2>6. 設定功能</h2>
     <h3>A. 系統校時 (SET RTC)</h3>
     <p>點擊 <span class="btn-ref orange">SET RTC</span>。使用 <span class="btn-ref blue">+</span> / <span class="btn-ref orange">-</span> 調整數值，<span class="btn-ref orange">Next</span> 切換欄位，最後按 <span class="btn-ref green">SAVE</span> 寫入硬件。</p>
     
@@ -55,19 +86,19 @@
     <ol>
         <li>輸入 Server 地址 -> 按 <strong>OK</strong>。</li>
         <li>輸入 Port (預設 1883) -> 按 <strong>OK</strong>。</li>
-        <li>輸入訂閱 Topic (SUB) -> 按 <strong>OK</strong>。</li>
-        <li>輸入發布 Topic (PUB) -> 按 <strong>OK</strong> 自動儲存至 SD 卡。</li>
+        <li>選擇訂閱 Topic (SUB)：系統提供選單，預設包含 <code>Prowave/#</code>、<code>PW/#</code>、<code>Advantech/#</code>，若有 SD 卡會自動載入 <code>/MQTTList.txt</code> 中的自訂項目 -> 點選後按 <strong>SELECT</strong>。</li>
+        <li>輸入發布 Topic (PUB) -> 按 <strong>OK</strong> 自動儲存。</li>
     </ol>
     <p>💡 鍵盤說明：<code>KB</code> 切換英/數分頁；<code>HOME</code> 隨時放棄設定回到首頁。</p>
 
-    <h2>5. 固件更新 (UPDATE)</h2>
+    <h2>7. 固件更新 (UPDATE)</h2>
     <p>點擊 <span class="btn-ref blue">UPDATE</span>。系統將強制開啟 <strong>WiFi</strong> 並連線至 GitHub 檢查最新固件。</p>
     <div class="feature-box">
-        <p><strong>注意</strong>：自 v1.1.12 起，進入此模式後會自動鎖定背景計時器，避免與 30 秒自動運行衝突導致更新失敗。</p>
+        <p><strong>注意</strong>：進入此模式後會自動鎖定背景計時器，避免與 30 秒自動運行衝突導致更新失敗。</p>
     </div>
 
     <footer style="margin-top: 50px; font-size: 0.8em; color: #888;">
-        © 2026 M5C3SE_MQTT Project. Version 1.1.12+.
+        © 2026 M5C3SE_MQTT Project. Version 1.1.32.
     </footer>
 </body>
 </html>

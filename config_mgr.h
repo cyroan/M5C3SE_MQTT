@@ -21,15 +21,19 @@
 
 enum NetworkType { NET_WIFI, NET_LAN_DHCP, NET_LAN_STATIC };
 
+#include <vector>
+
 extern const char* wifiConfigFile;
 extern const char* lanConfigFile;
 extern const char* mqttConfigFile;
 extern const char* netPrefFile;
+extern const char* mqttListFile;
 
 extern String mqttServer;
 extern int mqttPort;
 extern String mqttTopicSub;
 extern String mqttTopicPub;
+extern std::vector<String> mqttTopicList;
 
 extern String storedOtaSsid;
 extern String storedOtaPass;
@@ -57,5 +61,6 @@ void saveNetPref();
 void loadNetPref();
 void saveGuiConfig();
 void loadGuiConfig();
+void loadMqttTopicList();
 
 #endif // CONFIG_MGR_H

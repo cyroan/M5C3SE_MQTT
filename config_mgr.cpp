@@ -4,11 +4,13 @@ const char* wifiConfigFile = "/wifi_config.txt";
 const char* lanConfigFile = "/lan_config.txt";
 const char* mqttConfigFile = "/mqtt_config.txt";
 const char* netPrefFile = "/net_pref.txt";
+const char* mqttListFile = "/MQTTList.txt";
 
 String mqttServer = "mqtt.m5stack.com";
 int mqttPort = 1883;
 String mqttTopicSub = "Prowave/#";
 String mqttTopicPub = "Pro/T";
+std::vector<String> mqttTopicList;
 
 String storedOtaSsid = "";
 String storedOtaPass = "";
@@ -151,3 +153,50 @@ void loadGuiConfig() {
         file.close();
     }
 }
+
+void loadMqttTopicList() {
+    mqttTopicList.clear();
+    // Default options required: Prowave/#, PW/#, Advantech/#
+    mqttTopicList.push_back("Prowave/#");
+    mqttTopicList.push_back("PW/#");
+    mqttTopicList.push_back("Advantech/#");
+
+    // Additional options loaded from SD card MQTTList.txt
+    if (sdAvailable && SD.exists(mqttListFile)) {
+        File file = SD.open(mqttListFile, FILE_READ);
+        if (file) {
+            while (file.available()) {
+                String line = file.readStringUntil('\n');
+                line.trim();
+                if (line.length() > 0) {
+                    bool exists = false;
+                    for (const auto& item : mqttTopicList) {
+                        if (item == line) {
+                            exists = true;
+                            break;
+                        }
+                    }
+                    if (!exists) {
+                        mqttTopicList.push_back(line);
+                    }
+                }
+            }
+            file.close();
+        }
+    }
+
+    // Ensure currently selected topic is included if set
+    if (mqttTopicSub.length() > 0) {
+        bool exists = false;
+        for (const auto& item : mqttTopicList) {
+            if (item == mqttTopicSub) {
+                exists = true;
+                break;
+            }
+        }
+        if (!exists) {
+            mqttTopicList.push_back(mqttTopicSub);
+        }
+    }
+}
+

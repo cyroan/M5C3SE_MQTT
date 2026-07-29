@@ -90,7 +90,7 @@ bool parseMqttJsonPayload(const char* topic, byte* payload, unsigned int length)
     else if (a5 == 27) { conditionActive[5] = true; conditionActive[7] = true; }
 
     if (a6 == 1) conditionActive[1] = true;
-    if (a7 == 1) conditionActive[2] = true;
+    if (a7 == 1) { conditionActive[2] = true; conditionActive[3] = true; }
     if (a8 == 1) conditionActive[11] = true;
     if (a9 == 1) conditionActive[10] = true;
 

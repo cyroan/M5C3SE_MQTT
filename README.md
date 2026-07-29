@@ -20,9 +20,45 @@
 
 ---
 
+## DIAG 診斷圖示排列架構 (4x3 Grid Layout)
+
+目前 DIAG 模式下的 4x3 圖示矩陣排列順序如下：
+
+| 位置 | 欄 1 (Col 1) | 欄 2 (Col 2) | 欄 3 (Col 3) | 欄 4 (Col 4) |
+| :--- | :--- | :--- | :--- | :--- |
+| **列 1 (Row 1)** | 6. Bearing housing bolts looseness | 10. Bearing looseness | 7. Bearing housing looseness | 9. Bearing sleeve |
+| **列 2 (Row 2)** | 8. Bearing damage | 5. Structural looseness | 2. Misalignment | 1. Unbalance |
+| **列 3 (Row 3)** | 4. Oil Whirl | 11. Gearbox damage | 3. Vortex problem | 12. rotor eccentricity |
+
+---
+
 ## 版本演進 (Development Log)
 
-### v1.1.28 (Latest)
+### v1.1.33 (Latest)
+- **RSSI Topic 文字動態加大**：在 MQTT 訊息顯示模式中（含即時訊息與瀏覽歷史舊訊息），當 Topic 包含 `RSSI`（不限大小寫）時，內文顯示字體加大一號由 `Size 2` 自動升為 `Size 3`。
+
+### v1.1.32
+- **MQTT Server 自動設定為 Gateway IP**：在無 SD 卡且連線成功後，自動將 MQTT Broker 位址 (`mqttServer`) 設定為經由 DHCP 取得的網關位址 (`gatewayIP`)，PORT 保持為 `1883`。
+
+### v1.1.31
+- **無 SD 卡模式優化與 Topic 字體動態加大**：
+  - **無 SD 自動切換與 MQTT 設定**：若開機檢測不到 SD 卡，自動切換開機與運行網路模式為 `LAN (DHCP)`，並於取得 IP 後將取得之本機 IP 設定為 `MQTT Broker IP`，連接埠固定為 `1883`。
+  - **無 SD 卡訊息儲存過濾**：當 SD 卡不存在時，接收 MQTT 訊息自動跳過檔案儲存 (`/RECEIVR.TXT`)。
+  - **Topic 選單預設值更新**：預設 Topic 列表更新為 `Prowave/#`、`PW/#`、`Advantech/#`，預設訂閱為 `Prowave/#`。
+  - **動態字體加大**：在 MQTT 訊息顯示模式中，若 Topic 符合 `PW/#` 或 `Advantech/#`（含前綴），內文顯示字體加大一號由 `Size 2` 自動升為 `Size 3`。
+
+### v1.1.30
+- **DIAG 圖示排列重構與邏輯修正**：
+  - **螢幕顯示位置重構**：更新 DIAG 模式下的 4x3 螢幕圖示位置對映（按指定 Display Position 排列：Row1 = 6, 10, 7, 9；Row2 = 8, 5, 2, 1；Row3 = 4, 11, 3, 12）。
+  - **Address 7 解析修正**：修正 `Address7 == 1` 時僅單獨觸發水漩的問題，改為同時觸發 **3. Vortex problem** 與 **4. Oil Whirl**。
+
+### v1.1.29
+- **MQTT 訂閱 Topic 選單化與 SD 擴充**：
+  - **Topic 選擇選單**：在 `SET MQTT` 的 Step 3 訂閱 Topic 設定中，改為圖形化選擇清單 (List UI)，取代原本的手動鍵盤輸入。
+  - **預設選項與動態載入**：清單預設包含 `PROWAVE/#`、`ADVANTECH/#`、`PW/#`，並自動由 SD 卡 `/MQTTList.txt` 載入其他客製 Topic 選項。
+  - **線上燒錄與驗證**：完成 `v1.1.29` 固件編譯並經由 USB (`COM5`) 成功燒錄至 M5Stack CoreS3 設備。
+
+### v1.1.28
 - **Speed 顯示切換與持久化**：
   - **切換功能**：在 VALUES 數值顯示模式下，點擊 Speed 顯示行可切換是否顯示（隱藏時顯示 `[Hidden]` 灰字）。
   - **設定保存**：設定狀態會寫入 SD 卡的 `/gui_pref.txt` 中，開機時自動載入。

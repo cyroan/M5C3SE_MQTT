@@ -17,6 +17,7 @@ int lanInputIdx = 0;
 
 int rtcY = 2026, rtcM = 1, rtcD = 1, rtcH = 0, rtcMin = 0, rtcSetIdx = 0;
 int mqttSetStep = 0;
+int selectedTopicIdx = 0;
 
 const char* kbdMap0 = "ABCDEFGHIJKLMNOPQRSTUVW<\x01"; // Slot 23=<, 24=\x01
 const char* kbdMap1 = "XYZ0123456789.-_/@: \x01\x02\n"; // Slot 21= , 22=\x01, 23=\x02, 24=\n
@@ -42,14 +43,19 @@ void drawDiagDashboard() {
     
     M5.Display.setSwapBytes(true); 
     bool anyActive = false;
-    for (int i = 0; i < 12; i++) {
-        int col = i % 4;
-        int row = i / 4;
+    // Map screen slots (0..11) to condition icon indices (0..11)
+    // R1: 6, 10, 7, 9  | R2: 8, 5, 2, 1  | R3: 4, 11, 3, 12
+    const int displayOrder[12] = {5, 9, 6, 8, 7, 4, 1, 0, 3, 10, 2, 11};
+
+    for (int slot = 0; slot < 12; slot++) {
+        int idx = displayOrder[slot];
+        int col = slot % 4;
+        int row = slot / 4;
         int x = startX + col * iconSize;
         int y = startY + row * iconSize;
-        M5.Display.pushImage(x, y, iconSize, iconSize, icons_2026[i]);
+        M5.Display.pushImage(x, y, iconSize, iconSize, icons_2026[idx]);
         
-        if (conditionActive[i]) {
+        if (conditionActive[idx]) {
             anyActive = true;
             // Triggered: Normal brightness + Red Frame
             M5.Display.drawRect(x, y, iconSize, iconSize, RED);
@@ -209,11 +215,21 @@ void updateRunningUI() {
     M5.Display.setTextColor(CYAN); M5.Display.setTextSize(2); M5.Display.setCursor(10, 80); M5.Display.print("Msg: ");
     if (dispTime != "") { M5.Display.setTextColor(LIGHTGREY); M5.Display.print("(" + dispTime + ")"); }
     
+    // Check if Topic matches PW/#, Advantech/# or contains RSSI to increase font size by 1 (Size 3)
+    String dispTopicUpper = dispTopic; dispTopicUpper.toUpperCase();
+    String subTopicUpper = mqttTopicSub; subTopicUpper.toUpperCase();
+    bool isLargeFont = (dispTopic.startsWith("PW/") || dispTopic == "PW/#" ||
+                        dispTopic.startsWith("Advantech/") || dispTopic == "Advantech/#" ||
+                        dispTopic.startsWith("ADVANTECH/") || dispTopic == "ADVANTECH/#" ||
+                        mqttTopicSub == "PW/#" || mqttTopicSub == "Advantech/#" || mqttTopicSub == "ADVANTECH/#" ||
+                        dispTopicUpper.indexOf("RSSI") != -1 || subTopicUpper.indexOf("RSSI") != -1);
+    int msgTextSize = isLargeFont ? 3 : 2;
+
     // Draw Message with Scrolling using ClipRect
     msgCanvas.createSprite(270, 1500); 
     msgCanvas.fillSprite(BLACK);
     msgCanvas.setTextColor(WHITE);
-    msgCanvas.setTextSize(2);
+    msgCanvas.setTextSize(msgTextSize);
     msgCanvas.setCursor(0, 0);
     msgCanvas.println(dispMsg);
     
@@ -298,9 +314,57 @@ void updateMqttStepDisplay() {
     String title = ""; String val = "";
     if (mqttSetStep == 0) { title = "STEP 1: SERVER"; val = mqttServer; }
     else if (mqttSetStep == 1) { title = "STEP 2: PORT"; val = String(mqttPort); }
-    else if (mqttSetStep == 2) { title = "STEP 3: SUB TOPIC"; val = mqttTopicSub; }
+    else if (mqttSetStep == 2) { title = "STEP 3: SUB TOPIC (LIST)"; val = mqttTopicSub; }
     else { title = "STEP 4: PUB TOPIC"; val = mqttTopicPub; }
     M5.Display.drawCenterString(title, 160, 5);
     M5.Display.setTextSize(2); M5.Display.setTextColor(YELLOW);
     M5.Display.drawCenterString(val, 160, 20);
 }
+
+void drawMqttTopicSelectUI() {
+    M5.Display.fillScreen(BLACK);
+    M5.Display.setTextSize(2);
+    M5.Display.setCursor(10, 5);
+    M5.Display.setTextColor(ORANGE);
+    M5.Display.println("Select SUB Topic:");
+
+    int startY = 35;
+    int itemsPerPage = 5;
+    int totalItems = (int)mqttTopicList.size();
+    if (totalItems == 0) return;
+
+    if (selectedTopicIdx < 0) selectedTopicIdx = 0;
+    if (selectedTopicIdx >= totalItems) selectedTopicIdx = totalItems - 1;
+
+    int startIndex = (selectedTopicIdx / itemsPerPage) * itemsPerPage;
+
+    for (int i = 0; i < itemsPerPage; i++) {
+        int currentIdx = startIndex + i;
+        if (currentIdx >= totalItems) break;
+
+        String topic = mqttTopicList[currentIdx];
+        bool isCurrent = (topic == mqttTopicSub);
+
+        if (currentIdx == selectedTopicIdx) {
+            M5.Display.fillRect(0, startY + i * 30, 320, 28, BLUE);
+            M5.Display.setTextColor(WHITE);
+        } else {
+            M5.Display.setTextColor(isCurrent ? GREEN : LIGHTGREY);
+        }
+
+        M5.Display.setCursor(15, startY + 5 + i * 30);
+        M5.Display.printf("%d. %s%s", currentIdx + 1, topic.c_str(), isCurrent ? " *" : "");
+    }
+
+    M5.Display.setTextSize(1);
+    M5.Display.setTextColor(DARKGREY);
+    M5.Display.setCursor(250, 10);
+    int totalPages = (totalItems + itemsPerPage - 1) / itemsPerPage;
+    int currentPage = (startIndex / itemsPerPage) + 1;
+    M5.Display.printf("P.%d/%d", currentPage, totalPages);
+
+    drawButton(5, 190, 95, 45, "UP", DARKGREY);
+    drawButton(110, 190, 100, 45, "SELECT", GREEN);
+    drawButton(220, 190, 95, 45, "DOWN", DARKGREY);
+}
+

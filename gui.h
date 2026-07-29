@@ -20,6 +20,7 @@ extern int lanInputIdx;
 
 extern int rtcY, rtcM, rtcD, rtcH, rtcMin, rtcSetIdx;
 extern int mqttSetStep;
+extern int selectedTopicIdx;
 
 // Constants for Keyboard
 extern const char* kbdMap0;
@@ -43,5 +44,6 @@ void updatePasswordDisplay();
 void updateLanStaticDisplay();
 void drawRtcSetting();
 void updateMqttStepDisplay();
+void drawMqttTopicSelectUI();
 
 #endif // GUI_H
