@@ -182,7 +182,7 @@ void enterState(State ns) {
 
 void handleTouch() {
     auto detail = M5.Touch.getDetail(); 
-    if (!detail.isPressed()) return;
+    if (!detail.isPressed() && !detail.wasClicked()) return;
     int x = detail.x, y = detail.y;
     
     switch (currentState) {
@@ -405,8 +405,10 @@ void handleTouch() {
             
         case STATE_RUNNING:
             if (y < 40) { 
-                previousState = currentState; 
-                enterState(STATE_MODE_SELECT); 
+                if (millis() - stateTimer >= 1000 && detail.wasClicked()) {
+                    previousState = currentState; 
+                    enterState(STATE_MODE_SELECT); 
+                }
                 return; 
             } 
             if (y > 100 && y < 200) { 
@@ -424,7 +426,7 @@ void handleTouch() {
             }
             if (y > 200) { 
                 if (x > 215 && x < 265) { 
-                    if (historyCount > 0) { 
+                    if (detail.wasClicked() && historyCount > 0) { 
                         if (historyViewIdx == -1) historyViewIdx = (historyWriteIdx + 9) % 10; 
                         else historyViewIdx = (historyViewIdx + 9) % 10; 
                         scrollOffset = 0; 
@@ -432,7 +434,7 @@ void handleTouch() {
                         delay(150); 
                     } 
                 } else if (x > 265) { 
-                    if (historyViewIdx != -1) { 
+                    if (detail.wasClicked() && historyViewIdx != -1) { 
                         historyViewIdx = (historyViewIdx + 1) % 10; 
                         if (historyViewIdx == (historyWriteIdx + 9) % 10) historyViewIdx = -1; 
                         scrollOffset = 0; 
@@ -440,25 +442,33 @@ void handleTouch() {
                         delay(150); 
                     } 
                 } else if (x > 150 && x < 210) { 
-                    enterState(STATE_BOOT); 
+                    if (detail.wasClicked()) enterState(STATE_BOOT); 
                 } 
             } else {
+                if (millis() - stateTimer >= 1000 && detail.wasClicked()) {
+                    previousState = currentState; 
+                    enterState(STATE_MODE_SELECT);
+                }
+            }
+            break;
+            
+        case STATE_DIAG:
+            // 剛進入時 IDLE 約 3 秒才能接受新 CLICK，防止連續穿透
+            if (millis() - stateTimer < 3000) return;
+            if (detail.wasClicked()) {
                 previousState = currentState; 
                 enterState(STATE_MODE_SELECT);
             }
             break;
             
-        case STATE_DIAG:
-            previousState = currentState; 
-            enterState(STATE_MODE_SELECT);
-            break;
-            
         case STATE_VALUE_DISPLAY:
             if (x < 280 && y > 140 && y < 170) {
-                showSpeed = !showSpeed;
-                saveGuiConfig();
-                drawValueDashboard();
-                delay(150);
+                if (detail.wasClicked()) {
+                    showSpeed = !showSpeed;
+                    saveGuiConfig();
+                    drawValueDashboard();
+                    delay(150);
+                }
                 return;
             }
             if (x > 280) { // Value Scroll Buttons
@@ -469,12 +479,17 @@ void handleTouch() {
                     return;
                 }
             }
-            previousState = currentState; 
-            enterState(STATE_MODE_SELECT);
+            // 剛進入時 IDLE 約 3 秒才能接受新 CLICK，防止連續穿透
+            if (millis() - stateTimer < 3000) return;
+            if (detail.wasClicked()) {
+                previousState = currentState; 
+                enterState(STATE_MODE_SELECT);
+            }
             break;
             
         case STATE_MODE_SELECT:
-            if (x > 20 && x < 300) {
+            if (millis() - stateTimer < 300) return; // 進入選單後短暫防抖
+            if (detail.wasClicked() && x > 20 && x < 300) {
                 if (y > 60 && y < 105) enterState(STATE_RUNNING);
                 else if (y > 115 && y < 160) enterState(STATE_DIAG);
                 else if (y > 170 && y < 215) enterState(STATE_VALUE_DISPLAY);
