@@ -20,10 +20,17 @@ extern int historyCount;
 extern unsigned long lastPublishTime;
 extern PubSubClient mqttClient;
 
+extern String latestSN;
+extern String latestDataTime;
+extern float latestRSSI;
+extern float latestDB;
+extern bool hasDbRssiData;
+
 void initMqtt();
 void reconnectMqtt();
 void mqttLoop();
 void publishUptime();
 void mqttCallback(char* topic, byte* payload, unsigned int length);
+bool parseAdvantechPayload(const char* topic, byte* payload, unsigned int length);
 
 #endif // MQTT_MGR_H

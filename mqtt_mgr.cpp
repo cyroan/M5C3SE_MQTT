@@ -2,6 +2,7 @@
 #include "state.h"
 #include "gui.h"
 #include <M5Unified.h>
+#include <ArduinoJson.h>
 
 MqttMsg msgHistory[10];
 int historyWriteIdx = 0;
@@ -10,6 +11,12 @@ int historyCount = 0;
 unsigned long lastPublishTime = 0;
 
 PubSubClient mqttClient;
+
+String latestSN = "";
+String latestDataTime = "";
+float latestRSSI = 0;
+float latestDB = 0;
+bool hasDbRssiData = false;
 
 void initMqtt() {
     mqttClient.setServer(mqttServer.c_str(), mqttPort);
@@ -30,6 +37,8 @@ void reconnectMqtt() {
             Serial.println("Connected to MQTT Broker.");
             bool subOk = mqttClient.subscribe(mqttTopicSub.c_str()); 
             Serial.printf("Subscribe to [%s] %s\n", mqttTopicSub.c_str(), subOk ? "SUCCESS" : "FAILED");
+            bool subAdv = mqttClient.subscribe("Advantech/+/data");
+            Serial.printf("Subscribe to [Advantech/+/data] %s\n", subAdv ? "SUCCESS" : "FAILED");
             M5.Display.fillRect(0, 190, 320, 15, BLACK); 
         } else {
             Serial.printf("MQTT Connect Failed, rc=%d\n", mqttClient.state());
@@ -81,5 +90,72 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
         if (currentState == STATE_VALUE_DISPLAY) drawValueDashboard();
     }
 
+    // --- Advantech / DB / RSSI Logic ---
+    bool isAdvPayload = parseAdvantechPayload(topic, payload, length);
+    if (isAdvPayload) {
+        if (currentState == STATE_DB_RSSI) drawDbRssiDashboard();
+    }
+
     if (currentState == STATE_RUNNING) updateRunningUI();
+}
+
+bool parseAdvantechPayload(const char* topic, byte* payload, unsigned int length) {
+    String tStr = String(topic);
+    bool matchTopic = (tStr.startsWith("Advantech/") && tStr.endsWith("/data")) || 
+                      (tStr.startsWith("ADVANTECH/") && tStr.endsWith("/data")) ||
+                      (tStr.indexOf("Advantech/") != -1) ||
+                      (tStr.indexOf("RSSI") != -1) ||
+                      (tStr.indexOf("rssi") != -1);
+    
+    // Extract SN from topic if possible: Advantech/{SN}/data
+    if (tStr.startsWith("Advantech/") || tStr.startsWith("ADVANTECH/")) {
+        int firstSlash = tStr.indexOf('/');
+        int secondSlash = tStr.indexOf('/', firstSlash + 1);
+        if (firstSlash != -1 && secondSlash != -1 && secondSlash > firstSlash + 1) {
+            latestSN = tStr.substring(firstSlash + 1, secondSlash);
+        }
+    }
+
+    JsonDocument doc;
+    DeserializationError err = deserializeJson(doc, payload, length);
+    if (err) {
+        if (!matchTopic) return false;
+        auto dt = M5.Rtc.getDateTime();
+        char buf[16];
+        sprintf(buf, "%02d:%02d:%02d", dt.time.hours, dt.time.minutes, dt.time.seconds);
+        latestDataTime = String(buf);
+        return true;
+    }
+
+    // SN in JSON
+    if (doc["sn"].is<const char*>()) latestSN = doc["sn"].as<const char*>();
+    else if (doc["SN"].is<const char*>()) latestSN = doc["SN"].as<const char*>();
+    else if (doc["mac"].is<const char*>()) latestSN = doc["mac"].as<const char*>();
+    else if (doc["devId"].is<const char*>()) latestSN = doc["devId"].as<const char*>();
+
+    // Timestamp
+    if (doc["time"].is<const char*>()) latestDataTime = doc["time"].as<const char*>();
+    else if (doc["timestamp"].is<const char*>()) latestDataTime = doc["timestamp"].as<const char*>();
+    else if (doc["datetime"].is<const char*>()) latestDataTime = doc["datetime"].as<const char*>();
+    else {
+        auto dt = M5.Rtc.getDateTime();
+        char buf[16];
+        sprintf(buf, "%02d:%02d:%02d", dt.time.hours, dt.time.minutes, dt.time.seconds);
+        latestDataTime = String(buf);
+    }
+
+    // RSSI
+    if (doc["rssi"].is<float>()) { latestRSSI = doc["rssi"].as<float>(); hasDbRssiData = true; }
+    else if (doc["RSSI"].is<float>()) { latestRSSI = doc["RSSI"].as<float>(); hasDbRssiData = true; }
+    else if (doc["gw_rssi"].is<float>()) { latestRSSI = doc["gw_rssi"].as<float>(); hasDbRssiData = true; }
+
+    // DB
+    if (doc["db"].is<float>()) { latestDB = doc["db"].as<float>(); hasDbRssiData = true; }
+    else if (doc["dB"].is<float>()) { latestDB = doc["dB"].as<float>(); hasDbRssiData = true; }
+    else if (doc["DB"].is<float>()) { latestDB = doc["DB"].as<float>(); hasDbRssiData = true; }
+    else if (doc["sound"].is<float>()) { latestDB = doc["sound"].as<float>(); hasDbRssiData = true; }
+    else if (doc["vib"].is<float>()) { latestDB = doc["vib"].as<float>(); hasDbRssiData = true; }
+    else if (doc["value"].is<float>()) { latestDB = doc["value"].as<float>(); hasDbRssiData = true; }
+
+    return matchTopic || hasDbRssiData;
 }

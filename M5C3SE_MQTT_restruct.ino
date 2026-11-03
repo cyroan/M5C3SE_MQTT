@@ -74,20 +74,20 @@ void enterState(State ns) {
             if (selectedSSID == storedOtaSsid || selectedSSID == storedRunSsid) {
                 wifiPassword = (isOtaMode ? storedOtaPass : storedRunPass); 
             }
-            kbdPage = 0; 
+            activeKbdKey = -1;
             updatePasswordDisplay(); 
-            drawKeyboard(); 
+            drawUnifiedKeyboard(); 
             break;
             
         case STATE_LAN_STATIC_INPUT: 
-            kbdPage = 1; 
+            activeKbdKey = -1;
             lanInputIdx = 0; 
             updateLanStaticDisplay(); 
-            drawKeyboard(); 
+            drawUnifiedKeyboard(); 
             break;
             
         case STATE_SET_MQTT: 
-            kbdPage = 0; 
+            activeKbdKey = -1;
             mqttSetStep = 0; 
             loadMqttTopicList();
             selectedTopicIdx = 0;
@@ -98,7 +98,7 @@ void enterState(State ns) {
                 }
             }
             updateMqttStepDisplay(); 
-            drawKeyboard(); 
+            drawUnifiedKeyboard(); 
             break;
             
         case STATE_CONNECTING:
@@ -164,6 +164,10 @@ void enterState(State ns) {
             drawModeSelection();
             break;
             
+        case STATE_DB_RSSI:
+            drawDbRssiDashboard();
+            break;
+            
         case STATE_SET_RTC:
             { 
                 auto dt = M5.Rtc.getDateTime(); 
@@ -182,7 +186,7 @@ void enterState(State ns) {
 
 void handleTouch() {
     auto detail = M5.Touch.getDetail(); 
-    if (!detail.isPressed() && !detail.wasClicked()) return;
+    if (!detail.isPressed() && !detail.wasClicked() && !detail.wasReleased()) return;
     int x = detail.x, y = detail.y;
     
     switch (currentState) {
@@ -217,41 +221,85 @@ void handleTouch() {
             }
             break;
             
-        case STATE_SET_RTC:
+        case STATE_SET_RTC: {
+            static unsigned long rtcPressStart = 0;
+            static unsigned long rtcLastStep = 0;
+            static int rtcActiveBtn = 0; // 1: +, 2: -
+            
+            if (detail.wasReleased()) {
+                rtcActiveBtn = 0;
+                return;
+            }
+            
             if (y > 140 && y < 185) {
                 if (x < 105) { // +
-                    if (rtcSetIdx == 0) rtcY++; 
-                    else if (rtcSetIdx == 1) rtcM = (rtcM % 12) + 1;
-                    else if (rtcSetIdx == 2) rtcD = (rtcD % 31) + 1; 
-                    else if (rtcSetIdx == 3) rtcH = (rtcH + 1) % 24;
-                    else rtcMin = (rtcMin + 1) % 60;
-                    drawRtcSetting(); 
-                    delay(150);
-                } else if (x > 105 && x < 210) { // -
-                    if (rtcSetIdx == 0) rtcY--; 
-                    else if (rtcSetIdx == 1) rtcM = (rtcM > 1) ? rtcM - 1 : 12;
-                    else if (rtcSetIdx == 2) rtcD = (rtcD > 1) ? rtcD - 1 : 31; 
-                    else if (rtcSetIdx == 3) rtcH = (rtcH > 0) ? rtcH - 1 : 23;
-                    else rtcMin = (rtcMin > 0) ? rtcMin - 1 : 59;
-                    drawRtcSetting(); 
-                    delay(150);
-                } else { 
-                    rtcSetIdx = (rtcSetIdx + 1) % 5; 
-                    drawRtcSetting(); 
-                    delay(500); 
+                    bool doStep = false;
+                    if (detail.wasPressed()) {
+                        rtcActiveBtn = 1;
+                        rtcPressStart = millis();
+                        rtcLastStep = millis();
+                        doStep = true;
+                    } else if (detail.isPressed() && rtcActiveBtn == 1) {
+                        if (millis() - rtcPressStart > 500 && millis() - rtcLastStep >= 250) {
+                            doStep = true;
+                            rtcLastStep = millis();
+                        }
+                    }
+                    if (doStep) {
+                        if (rtcSetIdx == 0) rtcY++; 
+                        else if (rtcSetIdx == 1) rtcM = (rtcM % 12) + 1;
+                        else if (rtcSetIdx == 2) rtcD = (rtcD % 31) + 1; 
+                        else if (rtcSetIdx == 3) rtcH = (rtcH + 1) % 24;
+                        else rtcMin = (rtcMin + 1) % 60;
+                        drawRtcSetting(); 
+                    }
+                    return;
+                } else if (x >= 105 && x < 210) { // -
+                    bool doStep = false;
+                    if (detail.wasPressed()) {
+                        rtcActiveBtn = 2;
+                        rtcPressStart = millis();
+                        rtcLastStep = millis();
+                        doStep = true;
+                    } else if (detail.isPressed() && rtcActiveBtn == 2) {
+                        if (millis() - rtcPressStart > 500 && millis() - rtcLastStep >= 250) {
+                            doStep = true;
+                            rtcLastStep = millis();
+                        }
+                    }
+                    if (doStep) {
+                        if (rtcSetIdx == 0) rtcY--; 
+                        else if (rtcSetIdx == 1) rtcM = (rtcM > 1) ? rtcM - 1 : 12;
+                        else if (rtcSetIdx == 2) rtcD = (rtcD > 1) ? rtcD - 1 : 31; 
+                        else if (rtcSetIdx == 3) rtcH = (rtcH > 0) ? rtcH - 1 : 23;
+                        else rtcMin = (rtcMin > 0) ? rtcMin - 1 : 59;
+                        drawRtcSetting(); 
+                    }
+                    return;
+                } else if (x >= 210) { // Next
+                    if (detail.wasClicked()) {
+                        rtcSetIdx = (rtcSetIdx + 1) % 5; 
+                        drawRtcSetting(); 
+                        delay(120);
+                    }
+                    return;
                 }
             } else if (y > 190 && x > 110 && x < 210) { // SAVE
-                m5::rtc_datetime_t dt; 
-                dt.date.year = rtcY; 
-                dt.date.month = rtcM; 
-                dt.date.date = rtcD; 
-                dt.time.hours = rtcH; 
-                dt.time.minutes = rtcMin; 
-                dt.time.seconds = 0;
-                M5.Rtc.setDateTime(dt); 
-                enterState(STATE_BOOT);
+                if (detail.wasClicked()) {
+                    m5::rtc_datetime_t dt; 
+                    dt.date.year = rtcY; 
+                    dt.date.month = rtcM; 
+                    dt.date.date = rtcD; 
+                    dt.time.hours = rtcH; 
+                    dt.time.minutes = rtcMin; 
+                    dt.time.seconds = 0;
+                    M5.Rtc.setDateTime(dt); 
+                    enterState(STATE_BOOT);
+                }
+                return;
             }
             break;
+        }
             
         case STATE_SET_MQTT:
             if (mqttSetStep == 2) {
@@ -268,8 +316,9 @@ void handleTouch() {
                             mqttTopicSub = mqttTopicList[selectedTopicIdx];
                         }
                         mqttSetStep++;
+                        activeKbdKey = -1;
                         updateMqttStepDisplay();
-                        drawKeyboard();
+                        drawUnifiedKeyboard();
                     }
                     delay(150);
                 } else if (y >= 35 && y < 185) {
@@ -284,79 +333,62 @@ void handleTouch() {
                     delay(150);
                 }
             } else {
-                if (x >= KBD_X && y >= KBD_Y) {
-                    int c = (x - KBD_X) / (BTN_W + 2);
-                    int r = (y - KBD_Y) / (BTN_H + 2);
-                    int idx = r * KBD_COLS + c; 
-                    const char* map = (kbdPage == 0 ? kbdMap0 : kbdMap1);
-                    if (idx < (int)strlen(map)) {
-                        char k = map[idx]; 
-                        String* t;
-                        if (mqttSetStep == 0) t = &mqttServer; 
-                        else if (mqttSetStep == 1) { 
-                            static String pS; 
-                            pS = String(mqttPort); 
-                            t = &pS; 
-                        } else {
-                            t = &mqttTopicPub;
-                        }
+                if (detail.wasClicked()) {
+                    String* t;
+                    static String pS;
+                    if (mqttSetStep == 0) t = &mqttServer;
+                    else if (mqttSetStep == 1) { pS = String(mqttPort); t = &pS; }
+                    else t = &mqttTopicPub;
 
-                        if (k == '<') { 
-                            if (t->length() > 0) t->remove(t->length() - 1); 
-                            else if (mqttSetStep == 0) enterState(STATE_BOOT); 
-                        } else if (k == '\x01') { 
-                            kbdPage = 1 - kbdPage; 
-                            drawKeyboard(); 
-                        } else if (k == '\x02') { 
-                            enterState(STATE_BOOT); 
-                        } else if (k == '\n') { // OK NEXT STEP
-                            if (mqttSetStep == 1) mqttPort = t->toInt();
-                            if (mqttSetStep < 3) { 
-                                mqttSetStep++; 
-                                updateMqttStepDisplay(); 
-                                if (mqttSetStep == 2) {
-                                    drawMqttTopicSelectUI();
-                                } else {
-                                    drawKeyboard(); 
-                                }
-                                delay(500); 
-                            } else { 
-                                saveMQTTConfig(); 
-                                enterState(STATE_BOOT); 
+                    int res = handleUnifiedKeyboardTouch(x, y, *t);
+                    if (mqttSetStep == 1) mqttPort = pS.toInt();
+
+                    if (res == 1) { // OK
+                        if (mqttSetStep < 3) {
+                            mqttSetStep++;
+                            activeKbdKey = -1;
+                            if (mqttSetStep == 2) {
+                                drawMqttTopicSelectUI();
+                            } else {
+                                updateMqttStepDisplay();
+                                drawUnifiedKeyboard();
                             }
-                        } else { 
-                            if (k == '_') *t += " "; else *t += k; 
-                            if (mqttSetStep == 1) mqttPort = t->toInt();
-                            updateMqttStepDisplay(); 
-                            delay(150);
+                        } else {
+                            saveMQTTConfig();
+                            enterState(STATE_BOOT);
                         }
+                    } else if (res == -1 && mqttSetStep == 0) {
+                        enterState(STATE_BOOT);
+                    } else {
+                        updateMqttStepDisplay();
                     }
+                    delay(120);
                 }
             }
             break;
             
         case STATE_LAN_STATIC_INPUT:
-            if (x >= KBD_X && y >= KBD_Y) {
-                int c = (x - KBD_X) / (BTN_W + 2);
-                int r = (y - KBD_Y) / (BTN_H + 2);
-                int idx = r * KBD_COLS + c; 
-                const char* map = (kbdPage == 0 ? kbdMap0 : kbdMap1);
-                if (idx < (int)strlen(map)) {
-                    char k = map[idx]; 
-                    String* t = (lanInputIdx == 0 ? &lanIP : lanInputIdx == 1 ? &lanGW : lanInputIdx == 2 ? &lanMask : &lanDNS);
-                    if (k == '<') { 
-                        if (t->length() > 0) t->remove(t->length() - 1); 
-                    } else if (k == '\x01') { 
-                        kbdPage = 1 - kbdPage; 
-                        drawKeyboard(); 
-                    } else if (k == '\n') {
+            if (detail.wasClicked()) {
+                String* t = (lanInputIdx == 0 ? &lanIP : lanInputIdx == 1 ? &lanGW : lanInputIdx == 2 ? &lanMask : &lanDNS);
+                int res = handleUnifiedKeyboardTouch(x, y, *t);
+                if (res == 1) { // OK
+                    if (lanInputIdx < 3) {
+                        lanInputIdx++;
+                        activeKbdKey = -1;
+                        updateLanStaticDisplay();
+                        drawUnifiedKeyboard();
+                    } else {
                         enterState(STATE_CONNECTING);
-                    } else if ((k >= '0' && k <= '9') || k == '.') {
-                        *t += k;
                     }
-                    updateLanStaticDisplay(); 
-                    delay(150);
+                } else if (res == 2) { // Title tapped
+                    lanInputIdx = (lanInputIdx + 1) % 4;
+                    activeKbdKey = -1;
+                    updateLanStaticDisplay();
+                    drawUnifiedKeyboard();
+                } else {
+                    updateLanStaticDisplay();
                 }
+                delay(120);
             }
             break;
             
@@ -378,28 +410,14 @@ void handleTouch() {
             break;
             
         case STATE_INPUT_PASSWORD:
-            if (x >= KBD_X && y >= KBD_Y) {
-                int c = (x - KBD_X) / (BTN_W + 2);
-                int r = (y - KBD_Y) / (BTN_H + 2);
-                int idx = r * KBD_COLS + c; 
-                const char* map = (kbdPage == 0 ? kbdMap0 : kbdMap1);
-                if (idx < (int)strlen(map)) {
-                    char k = map[idx]; 
-                    if (k == '<') { 
-                        if (wifiPassword.length() > 0) wifiPassword.remove(wifiPassword.length() - 1); 
-                    } else if (k == '\x01') { 
-                        kbdPage = 1 - kbdPage; 
-                        drawKeyboard(); 
-                    } else if (k == '\n') {
-                        enterState(STATE_CONNECTING); 
-                    } else if (k == '_') {
-                        wifiPassword += " "; 
-                    } else {
-                        wifiPassword += k;
-                    }
-                    updatePasswordDisplay(); 
-                    delay(150);
+            if (detail.wasClicked()) {
+                int res = handleUnifiedKeyboardTouch(x, y, wifiPassword);
+                if (res == 1) { // OK
+                    enterState(STATE_CONNECTING);
+                } else {
+                    updatePasswordDisplay();
                 }
+                delay(120);
             }
             break;
             
@@ -490,9 +508,18 @@ void handleTouch() {
         case STATE_MODE_SELECT:
             if (millis() - stateTimer < 300) return; // 進入選單後短暫防抖
             if (detail.wasClicked() && x > 20 && x < 300) {
-                if (y > 60 && y < 105) enterState(STATE_RUNNING);
-                else if (y > 115 && y < 160) enterState(STATE_DIAG);
-                else if (y > 170 && y < 215) enterState(STATE_VALUE_DISPLAY);
+                if (y >= 38 && y < 76) enterState(STATE_RUNNING);
+                else if (y >= 82 && y < 120) enterState(STATE_DIAG);
+                else if (y >= 126 && y < 164) enterState(STATE_VALUE_DISPLAY);
+                else if (y >= 170 && y < 208) enterState(STATE_DB_RSSI);
+            }
+            break;
+
+        case STATE_DB_RSSI:
+            if (millis() - stateTimer < 3000) return;
+            if (detail.wasClicked()) {
+                previousState = currentState;
+                enterState(STATE_MODE_SELECT);
             }
             break;
     }
@@ -572,8 +599,9 @@ void loop() {
         if (millis() - stateTimer > 5000) enterState(previousState);
     }
     
-    if (currentState == STATE_RUNNING || currentState == STATE_DIAG || currentState == STATE_VALUE_DISPLAY) {
+    if (currentState == STATE_RUNNING || currentState == STATE_DIAG || currentState == STATE_VALUE_DISPLAY || currentState == STATE_DB_RSSI) {
         if (currentState == STATE_RUNNING) updateClock(); 
+        if (currentState == STATE_DB_RSSI) updateDbClock();
         if (!mqttClient.connected()) reconnectMqtt(); 
         mqttLoop();
         publishUptime();

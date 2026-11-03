@@ -23,6 +23,28 @@ const char* kbdMap0 = "ABCDEFGHIJKLMNOPQRSTUVW<\x01"; // Slot 23=<, 24=\x01
 const char* kbdMap1 = "XYZ0123456789.-_/@: \x01\x02\n"; // Slot 21= , 22=\x01, 23=\x02, 24=\n
 const int KBD_COLS = 5, KBD_ROWS = 5, BTN_W = 60, BTN_H = 38, KBD_X = 10, KBD_Y = 45;
 
+int activeKbdKey = -1;
+bool isKbdUpper = false;
+
+struct KbdKeyDef {
+    const char* labelLower;
+    const char* labelUpper;
+    const char* candLower;
+    const char* candUpper;
+};
+
+static const KbdKeyDef kbdKeyDefs[9] = {
+    {"abc 1", "ABC 1", "abc1", "ABC1"},
+    {"def 2", "DEF 2", "def2", "DEF2"},
+    {"ghi 3", "GHI 3", "ghi3", "GHI3"},
+    {"jkl 4", "JKL 4", "jkl4", "JKL4"},
+    {"mno 5", "MNO 5", "mno5", "MNO5"},
+    {"pqr 6", "PQR 6", "pqr6", "PQR6"},
+    {"stu 7", "STU 7", "stu7", "STU7"},
+    {"vwx 8", "VWX 8", "vwx8", "VWX8"},
+    {"yz 9 0", "YZ 9 0", "yz90", "YZ90"}
+};
+
 void drawButton(int x, int y, int w, int h, const char* label, uint32_t color, int textSize) {
     M5.Display.fillRoundRect(x, y, w, h, 6, color);
     M5.Display.setTextColor(WHITE);
@@ -161,34 +183,293 @@ void drawModeSelection() {
     M5.Display.fillScreen(BLACK);
     M5.Display.setTextColor(ORANGE);
     M5.Display.setTextSize(2);
-    M5.Display.drawCenterString("SELECT DISPLAY MODE", 160, 20);
+    M5.Display.drawCenterString("SELECT DISPLAY MODE", 160, 12);
 
-    drawButton(20, 60, 280, 45, "MONITOR (MQTT)", BLUE);
-    drawButton(20, 115, 280, 45, "DIAGNOSTIC (ICONS)", GREEN);
-    drawButton(20, 170, 280, 45, "VALUES (DATA)", PURPLE);
+    drawButton(20, 38, 280, 38, "MONITOR (MQTT)", BLUE);
+    drawButton(20, 82, 280, 38, "DIAGNOSTIC (ICONS)", GREEN);
+    drawButton(20, 126, 280, 38, "VALUES (DATA)", PURPLE);
+    drawButton(20, 170, 280, 38, "DB / RSSI (SIGNAL)", 0x0318);
     
     M5.Display.setTextSize(1);
     M5.Display.setTextColor(LIGHTGREY);
-    M5.Display.drawCenterString("Auto-close in 5s", 160, 225);
+    M5.Display.drawCenterString("Auto-close in 5s", 160, 218);
+}
+
+void updateDbClock() {
+    static int ls = -1;
+    auto dt = M5.Rtc.getDateTime();
+    if (dt.time.seconds == ls) return;
+    ls = dt.time.seconds;
+    M5.Display.fillRect(215, 6, 100, 22, DARKGREY); 
+    M5.Display.setTextColor(WHITE); 
+    M5.Display.setTextSize(2);
+    M5.Display.setCursor(215, 8); 
+    M5.Display.printf("%02d:%02d:%02d", dt.time.hours, dt.time.minutes, dt.time.seconds);
+}
+
+void drawDbRssiDashboard() {
+    M5.Display.fillScreen(BLACK);
+    
+    // Top Bar (Y: 0 ~ 32)
+    M5.Display.fillRect(0, 0, 320, 32, DARKGREY);
+    M5.Display.setTextColor(CYAN);
+    M5.Display.setTextSize(2);
+    M5.Display.setCursor(8, 8);
+    M5.Display.print("DB / RSSI MONITOR");
+    updateDbClock();
+    
+    // Info Bar (Y: 34 ~ 64)
+    M5.Display.fillRect(0, 34, 320, 30, BLACK);
+    M5.Display.setTextSize(2);
+    M5.Display.setTextColor(WHITE);
+    M5.Display.setCursor(8, 40);
+    M5.Display.print("SN: ");
+    M5.Display.setTextColor(YELLOW);
+    M5.Display.print(latestSN.length() > 0 ? latestSN : "--");
+    
+    M5.Display.setTextColor(LIGHTGREY);
+    M5.Display.setCursor(195, 40);
+    M5.Display.printf("T: %s", latestDataTime.length() > 0 ? latestDataTime.c_str() : "--");
+    
+    // Left Card (RSSI) - X: 6, Y: 66, W: 150, H: 134
+    M5.Display.drawRoundRect(6, 66, 150, 134, 6, DARKGREY);
+    M5.Display.fillRect(7, 67, 148, 132, 0x0008);
+    M5.Display.setTextSize(2);
+    M5.Display.setTextColor(WHITE);
+    M5.Display.drawCenterString("RSSI", 81, 74);
+    
+    if (hasDbRssiData) {
+        // User rule: -80 > -100 is yellow
+        uint32_t rssiColor = GREEN;
+        if (latestRSSI <= -80 && latestRSSI >= -100) {
+            rssiColor = YELLOW;
+        } else if (latestRSSI < -100) {
+            rssiColor = RED;
+        }
+        M5.Display.setTextSize(4);
+        M5.Display.setTextColor(rssiColor);
+        M5.Display.drawCenterString(String((int)latestRSSI), 81, 105);
+        M5.Display.setTextSize(2);
+        M5.Display.setTextColor(LIGHTGREY);
+        M5.Display.drawCenterString("dBm", 81, 145);
+        
+        int barX = 14, barY = 172, barW = 134, barH = 16;
+        M5.Display.drawRect(barX, barY, barW, barH, DARKGREY);
+        int pct = map(constrain((int)latestRSSI, -120, -40), -120, -40, 0, barW - 4);
+        M5.Display.fillRect(barX + 2, barY + 2, pct, barH - 4, rssiColor);
+        M5.Display.fillRect(barX + 2 + pct, barY + 2, (barW - 4) - pct, barH - 4, BLACK);
+    } else {
+        M5.Display.setTextSize(4);
+        M5.Display.setTextColor(DARKGREY);
+        M5.Display.drawCenterString("--", 81, 105);
+        M5.Display.setTextSize(2);
+        M5.Display.setTextColor(LIGHTGREY);
+        M5.Display.drawCenterString("dBm", 81, 145);
+    }
+    
+    // Right Card (DB LEVEL) - X: 164, Y: 66, W: 150, H: 134
+    M5.Display.drawRoundRect(164, 66, 150, 134, 6, DARKGREY);
+    M5.Display.fillRect(165, 67, 148, 132, 0x0008);
+    M5.Display.setTextSize(2);
+    M5.Display.setTextColor(WHITE);
+    M5.Display.drawCenterString("DB LEVEL", 239, 74);
+    
+    if (hasDbRssiData) {
+        uint32_t dbColor = GREEN;
+        if (latestDB < 0) {
+            if (latestDB <= -80 && latestDB >= -100) dbColor = YELLOW;
+            else if (latestDB < -100) dbColor = RED;
+        } else {
+            if (latestDB >= 85) dbColor = RED;
+            else if (latestDB >= 70) dbColor = YELLOW;
+        }
+        M5.Display.setTextSize(4);
+        M5.Display.setTextColor(dbColor);
+        char dbBuf[16];
+        sprintf(dbBuf, "%.1f", latestDB);
+        M5.Display.drawCenterString(dbBuf, 239, 105);
+        M5.Display.setTextSize(2);
+        M5.Display.setTextColor(LIGHTGREY);
+        M5.Display.drawCenterString("dB", 239, 145);
+        
+        int barX = 172, barY = 172, barW = 134, barH = 16;
+        M5.Display.drawRect(barX, barY, barW, barH, DARKGREY);
+        int pctDb;
+        if (latestDB < 0) {
+            pctDb = map(constrain((int)latestDB, -120, -40), -120, -40, 0, barW - 4);
+        } else {
+            pctDb = map(constrain((int)latestDB, 30, 110), 30, 110, 0, barW - 4);
+        }
+        M5.Display.fillRect(barX + 2, barY + 2, pctDb, barH - 4, dbColor);
+        M5.Display.fillRect(barX + 2 + pctDb, barY + 2, (barW - 4) - pctDb, barH - 4, BLACK);
+    } else {
+        M5.Display.setTextSize(4);
+        M5.Display.setTextColor(DARKGREY);
+        M5.Display.drawCenterString("--", 239, 105);
+        M5.Display.setTextSize(2);
+        M5.Display.setTextColor(LIGHTGREY);
+        M5.Display.drawCenterString("dB", 239, 145);
+    }
+    
+    // Bottom Bar (Y: 204 ~ 238)
+    M5.Display.fillRect(0, 204, 320, 36, BLACK);
+    M5.Display.setTextSize(1);
+    M5.Display.setTextColor(LIGHTGREY);
+    M5.Display.drawCenterString("Tap screen for Display Menu", 160, 218);
+}
+
+void drawKbdTopBar(const String& title, const String& value) {
+    M5.Display.fillRect(0, 0, 320, 46, DARKGREY);
+    M5.Display.setTextSize(1);
+    M5.Display.setTextColor(YELLOW);
+    M5.Display.setCursor(6, 4);
+    M5.Display.print(title);
+    
+    M5.Display.setTextSize(2);
+    M5.Display.setTextColor(WHITE);
+    M5.Display.setCursor(6, 22);
+    if (value.length() > 16) {
+        M5.Display.print(value.substring(value.length() - 16) + "_");
+    } else {
+        M5.Display.print(value + "_");
+    }
+    
+    drawButton(214, 4, 48, 38, "BS", RED, 2);
+    drawButton(268, 4, 48, 38, "OK", GREEN, 2);
+}
+
+void drawUnifiedKeyboard() {
+    M5.Display.fillRect(0, 47, 320, 193, BLACK);
+    // Draw 3x3 Grid
+    for (int i = 0; i < 9; i++) {
+        int r = i / 3;
+        int c = i % 3;
+        int bx = 6 + c * 104;
+        int by = 48 + r * 46;
+        int bw = 100, bh = 42;
+        const char* lbl = isKbdUpper ? kbdKeyDefs[i].labelUpper : kbdKeyDefs[i].labelLower;
+        
+        if (activeKbdKey == i) {
+            drawButton(bx, by, bw, bh, lbl, 0x03E0, 2);
+            M5.Display.drawRoundRect(bx, by, bw, bh, 6, YELLOW);
+            M5.Display.drawRoundRect(bx + 1, by + 1, bw - 2, bh - 2, 6, YELLOW);
+        } else {
+            drawButton(bx, by, bw, bh, lbl, BLUE, 2);
+        }
+    }
+    
+    // Draw Candidate / Aux Bar (Y: 186 ~ 238)
+    if (activeKbdKey == -1) {
+        drawButton(6, 188, 72, 44, isKbdUpper ? "A/a" : "a/A", isKbdUpper ? ORANGE : BLUE, 2);
+        drawButton(84, 188, 72, 44, "SYM", BLUE, 2);
+        drawButton(162, 188, 72, 44, "SPC", BLUE, 2);
+        drawButton(240, 188, 74, 44, "CLR", 0x7800, 2);
+    } else if (activeKbdKey >= 0 && activeKbdKey <= 8) {
+        const char* cand = isKbdUpper ? kbdKeyDefs[activeKbdKey].candUpper : kbdKeyDefs[activeKbdKey].candLower;
+        int n = strlen(cand);
+        for (int c = 0; c < 4; c++) {
+            int bx = 6 + c * 62;
+            char str[2] = {0, 0};
+            if (c < n) str[0] = cand[c];
+            drawButton(bx, 188, 56, 44, str, BLUE, 2);
+        }
+        drawButton(6 + 4 * 62, 188, 56, 44, "X", RED, 2);
+    } else if (activeKbdKey == 9) {
+        const char* syms = ".:/@-";
+        for (int s = 0; s < 5; s++) {
+            int bx = 6 + s * 52;
+            char str[2] = {syms[s], 0};
+            drawButton(bx, 188, 46, 44, str, BLUE, 2);
+        }
+        drawButton(6 + 5 * 52, 188, 46, 44, "X", RED, 2);
+    }
+}
+
+int handleUnifiedKeyboardTouch(int tx, int ty, String& targetStr) {
+    if (ty >= 0 && ty <= 46) {
+        if (tx >= 210 && tx < 264) {
+            if (targetStr.length() > 0) {
+                targetStr.remove(targetStr.length() - 1);
+                return 0;
+            } else {
+                return -1;
+            }
+        } else if (tx >= 264 && tx <= 320) {
+            return 1;
+        } else if (tx < 210) {
+            return 2;
+        }
+    }
+    
+    if (ty >= 48 && ty <= 182) {
+        int r = (ty - 48) / 46;
+        int c = -1;
+        if (tx >= 6 && tx < 108) c = 0;
+        else if (tx >= 110 && tx < 212) c = 1;
+        else if (tx >= 214 && tx <= 316) c = 2;
+        
+        if (c != -1 && r >= 0 && r < 3) {
+            int keyIdx = r * 3 + c;
+            if (activeKbdKey == keyIdx) activeKbdKey = -1;
+            else activeKbdKey = keyIdx;
+            drawUnifiedKeyboard();
+            return 0;
+        }
+    }
+    
+    if (ty >= 186 && ty <= 238) {
+        if (activeKbdKey == -1) {
+            if (tx >= 6 && tx < 80) {
+                isKbdUpper = !isKbdUpper;
+                drawUnifiedKeyboard();
+                return 0;
+            } else if (tx >= 84 && tx < 158) {
+                activeKbdKey = 9;
+                drawUnifiedKeyboard();
+                return 0;
+            } else if (tx >= 162 && tx < 236) {
+                targetStr += ' ';
+                return 0;
+            } else if (tx >= 240 && tx <= 314) {
+                targetStr = "";
+                return 0;
+            }
+        } else if (activeKbdKey >= 0 && activeKbdKey <= 8) {
+            int candCol = (tx - 6) / 62;
+            if (candCol >= 0 && candCol < 4) {
+                const char* cand = isKbdUpper ? kbdKeyDefs[activeKbdKey].candUpper : kbdKeyDefs[activeKbdKey].candLower;
+                if (candCol < (int)strlen(cand)) {
+                    targetStr += cand[candCol];
+                }
+                activeKbdKey = -1;
+                drawUnifiedKeyboard();
+                return 0;
+            } else if (candCol == 4 || tx >= 250) {
+                activeKbdKey = -1;
+                drawUnifiedKeyboard();
+                return 0;
+            }
+        } else if (activeKbdKey == 9) {
+            int symCol = (tx - 6) / 52;
+            const char* syms = ".:/@-";
+            if (symCol >= 0 && symCol < 5) {
+                targetStr += syms[symCol];
+                activeKbdKey = -1;
+                drawUnifiedKeyboard();
+                return 0;
+            } else if (symCol == 5 || tx >= 260) {
+                activeKbdKey = -1;
+                drawUnifiedKeyboard();
+                return 0;
+            }
+        }
+    }
+    
+    return 0;
 }
 
 void drawKeyboard() {
-    M5.Display.fillRect(0, KBD_Y - 5, 320, 240 - (KBD_Y - 5), BLACK);
-    const char* map = (kbdPage == 0) ? kbdMap0 : kbdMap1;
-    for (int i = 0; i < 25; i++) {
-        int r = i / KBD_COLS, c = i % KBD_COLS;
-        int bx = KBD_X + c * (BTN_W + 2), by = KBD_Y + r * (BTN_H + 2);
-        if (i >= (int)strlen(map)) break;
-        char key = map[i];
-        if (key == '<') drawButton(bx, by, BTN_W, BTN_H, "BS", RED, 2);
-        else if (key == '\x01') drawButton(bx, by, BTN_W, BTN_H, "KB", ORANGE, 2);
-        else if (key == '\x02') drawButton(bx, by, BTN_W, BTN_H, "HOME", PURPLE, 2);
-        else if (key == '\n') drawButton(bx, by, BTN_W, BTN_H, "OK", GREEN, 2);
-        else { 
-            char lbl[2] = {key, 0}; 
-            drawButton(bx, by, BTN_W, BTN_H, key == ' ' ? "SPC" : lbl, BLUE, 2); 
-        }
-    }
+    drawUnifiedKeyboard();
 }
 
 void updateClock() {
@@ -282,17 +563,16 @@ void drawSsidList() {
 }
 
 void updatePasswordDisplay() {
-    M5.Display.fillRect(0, 0, 320, 40, DARKGREY); M5.Display.setCursor(5, 5);
-    M5.Display.setTextSize(1); M5.Display.setTextColor(WHITE);
-    // Check main configuration state
     extern bool isOtaMode;
-    M5.Display.printf("Mode:%s | SSID:%s", isOtaMode ? "OTA" : "RUN", selectedSSID.c_str()); M5.Display.setCursor(5, 20); M5.Display.setTextSize(2); M5.Display.printf("PW:%s", wifiPassword.c_str());
+    String title = "PW (" + (isOtaMode ? String("OTA: ") : String("RUN: ")) + selectedSSID + ")";
+    drawKbdTopBar(title, wifiPassword);
 }
 
 void updateLanStaticDisplay() {
-    M5.Display.fillRect(0, 0, 320, 45, DARKGREY); M5.Display.setTextSize(1); M5.Display.setCursor(5, 5);
-    String lbls[] = {"IP:", "GW:", "MSK:", "DNS:"}; String vls[] = {lanIP, lanGW, lanMask, lanDNS};
-    for(int i=0; i<4; i++) { M5.Display.setTextColor(i == lanInputIdx ? YELLOW : WHITE); M5.Display.printf("%s%s ", lbls[i].c_str(), vls[i].c_str()); }
+    const char* names[] = {"LAN IP", "GATEWAY", "SUBNET MASK", "DNS"};
+    String vls[] = {lanIP, lanGW, lanMask, lanDNS};
+    String title = String("Field ") + String(lanInputIdx + 1) + "/4: " + names[lanInputIdx];
+    drawKbdTopBar(title, vls[lanInputIdx]);
 }
 
 void drawRtcSetting() {
@@ -310,15 +590,12 @@ void drawRtcSetting() {
 }
 
 void updateMqttStepDisplay() {
-    M5.Display.fillRect(0, 0, 320, 45, DARKGREY); M5.Display.setTextSize(1); M5.Display.setTextColor(WHITE);
     String title = ""; String val = "";
-    if (mqttSetStep == 0) { title = "STEP 1: SERVER"; val = mqttServer; }
-    else if (mqttSetStep == 1) { title = "STEP 2: PORT"; val = String(mqttPort); }
+    if (mqttSetStep == 0) { title = "STEP 1/3: MQTT SERVER"; val = mqttServer; }
+    else if (mqttSetStep == 1) { title = "STEP 2/3: MQTT PORT"; val = String(mqttPort); }
     else if (mqttSetStep == 2) { title = "STEP 3: SUB TOPIC (LIST)"; val = mqttTopicSub; }
-    else { title = "STEP 4: PUB TOPIC"; val = mqttTopicPub; }
-    M5.Display.drawCenterString(title, 160, 5);
-    M5.Display.setTextSize(2); M5.Display.setTextColor(YELLOW);
-    M5.Display.drawCenterString(val, 160, 20);
+    else { title = "STEP 3/3: MQTT PUB TOPIC"; val = mqttTopicPub; }
+    drawKbdTopBar(title, val);
 }
 
 void drawMqttTopicSelectUI() {

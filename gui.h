@@ -32,11 +32,19 @@ extern const int BTN_H;
 extern const int KBD_X;
 extern const int KBD_Y;
 
+extern int activeKbdKey;
+extern bool isKbdUpper;
+
 void drawButton(int x, int y, int w, int h, const char* label, uint32_t color, int textSize = 2);
 void drawDiagDashboard();
 void drawValueDashboard();
+void drawDbRssiDashboard();
+void updateDbClock();
 void drawModeSelection();
 void drawKeyboard();
+void drawUnifiedKeyboard();
+void drawKbdTopBar(const String& title, const String& value);
+int handleUnifiedKeyboardTouch(int tx, int ty, String& targetStr);
 void updateClock();
 void updateRunningUI();
 void drawSsidList();
