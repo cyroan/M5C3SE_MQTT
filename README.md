@@ -59,7 +59,13 @@
 
 ## 版本演進 (Development Log)
 
-### v1.1.37 (Latest)
+### v1.1.38 (Latest)
+- **跨頁觸控防穿透守衛 (Touch Release Guard)**：
+  - 徹底解決在 RTC 設定畫面按下 SAVE 儲存返回主畫面時，手指未離開螢幕導致瞬間誤觸主畫面 SET RTC 或 SET MQTT 按鈕的問題。
+  - 在 enterState 導入全域 	ouchGuardWaitRelease 機制：頁面切換後必須等待手指完全離開螢幕且經過至少 400ms 冷卻期，新頁面方才解鎖接受點擊。
+  - 主畫面四顆功能按鈕（UPDATE / RUN / SET RTC / SET MQTT）升級為完整點擊判定，避免長壓穿透。
+
+### v1.1.37
 - **RTC 觸控選取修復**：
   - 修復 loop() 中因手開放開判定遺漏導致欄位無法切換與 SAVE 無法點選之問題。
   - 將 5 個時間區塊 (年/月/日/時/分) 與 SAVE 改為 wasPressed 按壓即時觸發，點擊零延遲立即切換。

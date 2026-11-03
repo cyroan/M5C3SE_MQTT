@@ -9,14 +9,14 @@
         h2 { color: #2c3e50; margin-top: 30px; }
         .feature-box { background: #f8f9fa; border-left: 5px solid #007bff; padding: 15px; margin: 10px 0; }
         .btn-ref { display: inline-block; padding: 2px 8px; border-radius: 4px; color: white; font-weight: bold; font-size: 0.9em; }
-        .blue { background: #007bff; } .green { background: #28a745; } .orange { background: #fd7e14; } .purple { background: #6f42c1; }
+        .blue { background: #007bff; } .green { background: #28a745; } .orange { background: #fd7e14; } .purple { background: #6f42c1; } .cyan { background: #17a2b8; }
         .debug-text { color: #d63384; font-weight: bold; }
         code { background: #eee; padding: 2px 4px; border-radius: 3px; }
     </style>
 </head>
 <body>
     <h1>M5C3SE_MQTT 使用手冊</h1>
-    <p>本系統專為 M5Stack CoreS3 設計，提供強大的 MQTT 數據監控、雙網路切換及手動校時功能。</p>
+    <p>本系統專為 M5Stack CoreS3 設計，提供強大的 MQTT 數據監控、雙網路切換、4x3 診斷圖示、物理量數值及信號品質 (DB/RSSI/LSNR) 監控界面。</p>
 
     <h2>1. 啟動與自動運行 (Auto-Run)</h2>
     <div class="feature-box">
@@ -25,18 +25,20 @@
             <li><strong>連線記憶與無 SD 卡相容</strong>：若無 SD 卡，系統自動預設運行網路為 <code>LAN (DHCP)</code>。連線成功後，自動將 <strong>Gateway IP</strong> 設定為 MQTT Broker 的伺服器 IP，連接埠預設為 <code>1883</code>。</li>
             <li><strong>連線診斷</strong>：在 <code>Connecting...</code> 畫面會以<span class="debug-text">黃色字體</span>顯示當前的 SSID、密碼及連線模式，便於排查設定問題。</li>
             <li><strong>防衝突機制</strong>：若已手動進入 UPDATE 模式，自動運行計時器將自動禁用，確保更新不被中斷。</li>
+            <li><strong>跨頁防穿透守衛 (Touch Release Guard)</strong>：進入主畫面或其他頁面時啟動保護，手指完全放開前不會誤觸發任何按鈕。</li>
         </ul>
     </div>
 
-    <h2>2. MQTT 監控與模式切換 (RUN & Mode Selection)</h2>
+    <h2>2. MQTT 監控與四大模式切換 (Display Modes & UI Interaction)</h2>
     <ul>
         <li>點擊 <span class="btn-ref green">RUN</span> 進入網路選擇界面（支援 WiFi / LAN DHCP / LAN STATIC）。</li>
         <li><strong>動態字體加大</strong>：當接收到的 Topic 符合 <code>PW/#</code>、<code>Advantech/#</code> 或包含 <code>RSSI</code>（不限大小寫，含新舊歷史訊息）時，監控內文字體自動加大一號至 <strong>TextSize 3</strong> 方便閱讀。</li>
-        <li>在監控畫面點擊頂部標題或螢幕，即可彈出 <strong>橘色模式選擇選單</strong>：
+        <li>在監控畫面點擊頂部標題或螢幕，即可彈出 <strong>橘色模式選擇選單</strong>（支援 5 秒自動返回與 3 秒誤觸保護）：
             <ul>
                 <li><span class="btn-ref blue">MONITOR (MQTT)</span>：MQTT 文本消息監控與歷史紀錄。</li>
                 <li><span class="btn-ref green">DIAGNOSTIC (ICONS)</span>：4x3 圖示矩陣診斷界面。</li>
                 <li><span class="btn-ref purple">VALUES (DATA)</span>：物理量數據與故障列表。</li>
+                <li><span class="btn-ref cyan">DB / RSSI (SIGNAL)</span>：雙大卡片 RSSI 與 LSNR 信號品質儀表板。</li>
             </ul>
         </li>
     </ul>
@@ -66,7 +68,34 @@
         </ul>
     </div>
 
-    <h2>5. 歷史紀錄回顧 (Review)</h2>
+    <h2>5. DB / RSSI 信號品質模式 (DB / RSSI Mode)</h2>
+    <div class="feature-box">
+        <p>專門用於 LoRa 及無線設備連線品質監控：</p>
+        <ul>
+            <li><strong>自動訂閱</strong>：背景自動訂閱 <code>uplink/#</code> 與 <code>Advantech/+/data</code>。</li>
+            <li><strong>設備資訊分行顯示</strong>：
+                <ul>
+                    <li>第一行：<span style="color:#d4ac0d; font-weight:bold;">SN: 設備序號</span>（由主題或 JSON 自動提取）。</li>
+                    <li>第二行：<span style="color:#666;">Time: 封包接收時間戳</span>。</li>
+                </ul>
+            </li>
+            <li><strong>雙大卡片儀表板</strong>：
+                <ul>
+                    <li><strong>左卡片 RSSI (dB)</strong>：大字體呈現信號強度，附帶動態色彩水平量表。
+                        <ul>
+                            <li><code>&gt; -80 dB</code>：<span style="color:green; font-weight:bold;">綠色 (良好)</span></li>
+                            <li><code>-80 ~ -100 dB</code>：<span style="color:#d4ac0d; font-weight:bold;">黃色 (警告/中等區間)</span></li>
+                            <li><code>&lt; -100 dB</code>：<span style="color:red; font-weight:bold;">紅色 (微弱警戒)</span></li>
+                        </ul>
+                    </li>
+                    <li><strong>右卡片 LSNR (dB)</strong>：大字體呈現信噪比與動態量表。</li>
+                </ul>
+            </li>
+            <li><strong>獨立過濾保護</strong>：<code>uplink/#</code> 訊息僅在此模式解析顯示，不會洗版或干擾原有的 MONITOR 訊息紀錄。</li>
+        </ul>
+    </div>
+
+    <h2>6. 歷史紀錄回顧 (Review)</h2>
     <div class="feature-box">
         <p>進入監控界面後，系統會自動保留最近 <strong>10 筆</strong> 接收到的消息：</p>
         <ul>
@@ -77,28 +106,36 @@
         </ul>
     </div>
 
-    <h2>6. 設定功能</h2>
+    <h2>7. 設定功能</h2>
     <h3>A. 系統校時 (SET RTC)</h3>
-    <p>點擊 <span class="btn-ref orange">SET RTC</span>。使用 <span class="btn-ref blue">+</span> / <span class="btn-ref orange">-</span> 調整數值，<span class="btn-ref orange">Next</span> 切換欄位，最後按 <span class="btn-ref green">SAVE</span> 寫入硬件。</p>
+    <p>點擊主畫面 <span class="btn-ref orange">SET RTC</span>：</p>
+    <ul>
+        <li><strong>直接點選欄位</strong>：畫面上方提供 5 個獨立時間卡片（年 / 月 / 日 / 時 / 分），<strong>直接輕點任一卡片即可立即選取並亮黃框</strong>。</li>
+        <li><strong>加大按鍵與智慧連發</strong>：使用大尺寸 <span class="btn-ref blue">+</span> / <span class="btn-ref orange">-</span> 調整數值（輕按步進 1，長按 500ms 後啟動 250ms 平緩連發）。</li>
+        <li><strong>防穿透儲存</strong>：點擊下方綠色 <span class="btn-ref green">SAVE</span> 寫入硬件 RTC 並返回主畫面，配合防穿透守衛，手指未放開前絕不誤觸主畫面按鈕。</li>
+    </ul>
     
-    <h3>B. MQTT 參數設定 (SET MQTT)</h3>
-    <p>點擊 <span class="btn-ref purple">SET MQTT</span> 進入引導式設定：</p>
-    <ol>
-        <li>輸入 Server 地址 -> 按 <strong>OK</strong>。</li>
-        <li>輸入 Port (預設 1883) -> 按 <strong>OK</strong>。</li>
-        <li>選擇訂閱 Topic (SUB)：系統提供選單，預設包含 <code>Prowave/#</code>、<code>PW/#</code>、<code>Advantech/#</code>，若有 SD 卡會自動載入 <code>/MQTTList.txt</code> 中的自訂項目 -> 點選後按 <strong>SELECT</strong>。</li>
-        <li>輸入發布 Topic (PUB) -> 按 <strong>OK</strong> 自動儲存。</li>
-    </ol>
-    <p>💡 鍵盤說明：<code>KB</code> 切換英/數分頁；<code>HOME</code> 隨時放棄設定回到首頁。</p>
+    <h3>B. 9 宮格輸入法 (適用於密碼、靜態 IP、MQTT 設定)</h3>
+    <p>全面重構為直覺的雙層複合鍵盤：</p>
+    <ul>
+        <li><strong>頂部資訊與控制</strong>：左側顯示當前編輯欄位與文字游標，右側配置紅色 <strong>BS</strong> (退格鍵) 與綠色 <strong>OK</strong> (確認鍵)。</li>
+        <li><strong>中間 3x3 九宮格</strong>：提供 9 顆大尺寸按鈕 (<code>abc 1</code> ~ <code>yz 9 0</code>)，點擊展開底部候選字。</li>
+        <li><strong>底部候選列 / 快捷功能</strong>：
+            <ul>
+                <li>點擊九宮格後：水平展開 4 個字元候選按鈕與紅色 <strong>X</strong> 取消鍵。</li>
+                <li>未展開狀態：提供 <strong>a/A</strong> (大小寫切換)、<strong>SYM</strong> (符號 <code>.:/@-</code>)、<strong>SPC</strong> (空格) 與 <strong>CLR</strong> (全部清除)。</li>
+            </ul>
+        </li>
+    </ul>
 
-    <h2>7. 固件更新 (UPDATE)</h2>
+    <h2>8. 固件更新 (UPDATE)</h2>
     <p>點擊 <span class="btn-ref blue">UPDATE</span>。系統將強制開啟 <strong>WiFi</strong> 並連線至 GitHub 檢查最新固件。</p>
     <div class="feature-box">
         <p><strong>注意</strong>：進入此模式後會自動鎖定背景計時器，避免與 30 秒自動運行衝突導致更新失敗。</p>
     </div>
 
     <footer style="margin-top: 50px; font-size: 0.8em; color: #888;">
-        © 2026 M5C3SE_MQTT Project. Version 1.1.34.
+        © 2026 M5C3SE_MQTT Project. Version 1.1.38.
     </footer>
 </body>
 </html>

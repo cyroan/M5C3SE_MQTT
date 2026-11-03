@@ -27,11 +27,13 @@ State currentState = STATE_BOOT;
 State previousState = STATE_BOOT;
 unsigned long stateTimer = 0;
 bool isOtaMode = false;
+bool touchGuardWaitRelease = true;
 
 void enterState(State ns) {
     currentState = ns; 
     M5.Display.fillScreen(BLACK); 
     stateTimer = millis();
+    touchGuardWaitRelease = true;
     
     switch (ns) {
         case STATE_BOOT:
@@ -187,22 +189,33 @@ void enterState(State ns) {
 void handleTouch() {
     auto detail = M5.Touch.getDetail(); 
     if (!detail.isPressed() && !detail.wasClicked() && !detail.wasReleased() && !detail.wasPressed()) return;
+
+    // 換頁防穿透守衛：換頁後必須手完全離開螢幕，且至少經過 400ms，才允許接受新頁面按鍵觸發
+    if (touchGuardWaitRelease) {
+        if (!detail.isPressed() && M5.Touch.getCount() == 0 && millis() - stateTimer > 400) {
+            touchGuardWaitRelease = false;
+        }
+        return;
+    }
+
     int x = detail.x, y = detail.y;
     
     switch (currentState) {
         case STATE_BOOT:
-            if (y > 125 && y < 175) { 
-                if (x < 160) { 
-                    isOtaMode = true; 
-                    activeNet = NET_WIFI; 
-                    enterState(STATE_SCAN_WIFI); 
-                } else { 
-                    isOtaMode = false; 
-                    enterState(STATE_SELECT_NET_TYPE); 
-                } 
-            } else if (y > 185) { 
-                if (x < 160) enterState(STATE_SET_RTC); 
-                else enterState(STATE_SET_MQTT); 
+            if (detail.wasClicked() || detail.wasPressed()) {
+                if (y > 125 && y < 175) { 
+                    if (x < 160) { 
+                        isOtaMode = true; 
+                        activeNet = NET_WIFI; 
+                        enterState(STATE_SCAN_WIFI); 
+                    } else { 
+                        isOtaMode = false; 
+                        enterState(STATE_SELECT_NET_TYPE); 
+                    } 
+                } else if (y > 185) { 
+                    if (x < 160) enterState(STATE_SET_RTC); 
+                    else enterState(STATE_SET_MQTT); 
+                }
             }
             break;
             
@@ -562,7 +575,12 @@ void setup() {
 
 void loop() {
     M5.update(); 
-    if (M5.Touch.getCount() > 0 || M5.Touch.getDetail().wasClicked() || M5.Touch.getDetail().wasReleased()) handleTouch();
+    if (touchGuardWaitRelease) {
+        if (!M5.Touch.getDetail().isPressed() && M5.Touch.getCount() == 0 && millis() - stateTimer > 400) {
+            touchGuardWaitRelease = false;
+        }
+    }
+    if (M5.Touch.getCount() > 0 || M5.Touch.getDetail().wasClicked() || M5.Touch.getDetail().wasReleased() || M5.Touch.getDetail().wasPressed()) handleTouch();
     
     if (currentState == STATE_BOOT && !isOtaMode) {
         static unsigned long lastUpdate = 0;
