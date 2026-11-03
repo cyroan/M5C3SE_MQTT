@@ -4,14 +4,307 @@
     <meta charset="UTF-8">
     <title>M5C3SE_MQTT 使用手冊</title>
     <style>
-        body { font-family: sans-serif; line-height: 1.6; max-width: 800px; margin: 0 auto; padding: 20px; color: #333; }
-        h1 { color: #0056b3; border-bottom: 2px solid #0056b3; padding-bottom: 10px; }
-        h2 { color: #2c3e50; margin-top: 30px; }
-        .feature-box { background: #f8f9fa; border-left: 5px solid #007bff; padding: 15px; margin: 10px 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; max-width: 860px; margin: 0 auto; padding: 24px; color: #24292f; background: #fdfdfd; }
+        h1 { color: #0969da; border-bottom: 2px solid #0969da; padding-bottom: 10px; }
+        h2 { color: #1f2328; margin-top: 36px; border-bottom: 1px solid #d0d7de; padding-bottom: 6px; }
+        h3 { color: #24292f; margin-top: 22px; }
+        .feature-box { background: #f6f8fa; border-left: 5px solid #0969da; padding: 16px; margin: 14px 0; border-radius: 0 6px 6px 0; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
         .btn-ref { display: inline-block; padding: 2px 8px; border-radius: 4px; color: white; font-weight: bold; font-size: 0.9em; }
-        .blue { background: #007bff; } .green { background: #28a745; } .orange { background: #fd7e14; } .purple { background: #6f42c1; } .cyan { background: #17a2b8; }
-        .debug-text { color: #d63384; font-weight: bold; }
-        code { background: #eee; padding: 2px 4px; border-radius: 3px; }
+        .blue { background: #0969da; } .green { background: #1a7f37; } .orange { background: #d97706; } .purple { background: #8250df; } .cyan { background: #059669; }
+        .debug-text { color: #cf222e; font-weight: bold; }
+        code { background: #eff1f3; padding: 2px 5px; border-radius: 4px; font-size: 0.9em; font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace; }
+
+        /* CoreS3 Hardware Simulation Styling */
+        .sim-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 25px 0 35px 0;
+            background: linear-gradient(180deg, #f0f2f5 0%, #e2e6ea 100%);
+            padding: 24px;
+            border-radius: 12px;
+            border: 1px solid #d0d7de;
+        }
+        .sim-controls {
+            margin-bottom: 18px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+        }
+        .sim-btn {
+            background: #ffffff;
+            border: 1px solid #c9d1d9;
+            padding: 6px 14px;
+            font-size: 13px;
+            font-weight: 600;
+            border-radius: 20px;
+            cursor: pointer;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+            transition: all 0.15s ease-in-out;
+            color: #24292f;
+        }
+        .sim-btn:hover { background: #0969da; color: #ffffff; border-color: #0969da; }
+        .sim-btn.active { background: #0969da; color: #ffffff; border-color: #0969da; }
+
+        /* Hardware Chassis */
+        .cores3-chassis {
+            width: 410px;
+            height: 400px;
+            background: #202328;
+            border-radius: 36px;
+            box-shadow: 0 18px 45px rgba(0,0,0,0.4), inset 0 2px 2px rgba(255,255,255,0.22), inset 0 -3px 5px rgba(0,0,0,0.6);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 20px 14px 20px;
+            box-sizing: border-box;
+            user-select: none;
+            position: relative;
+            border: 2px solid #16181b;
+        }
+        /* Top Sensor Bar: Camera & Mic */
+        .chassis-top-bar {
+            width: 100%;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+        .mic-hole {
+            width: 4px;
+            height: 4px;
+            background: #090a0c;
+            border-radius: 50%;
+            box-shadow: inset 0 1px 1px #000;
+        }
+        .mic-hole.left { position: absolute; left: 45px; }
+        .mic-hole.right { position: absolute; right: 45px; }
+        .camera-housing {
+            width: 15px;
+            height: 15px;
+            background: #111316;
+            border-radius: 50%;
+            border: 1px solid #363a40;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.5);
+        }
+        .camera-lens {
+            width: 7px;
+            height: 7px;
+            background: radial-gradient(circle at 35% 35%, #15334d 0%, #060e17 80%);
+            border-radius: 50%;
+            box-shadow: inset 0 0 1px rgba(255,255,255,0.6);
+        }
+
+        /* Screen Glass Bezel */
+        .screen-bezel {
+            width: 336px;
+            height: 256px;
+            background: #0c0d0f;
+            border-radius: 8px;
+            padding: 8px;
+            box-sizing: border-box;
+            box-shadow: inset 0 2px 6px rgba(0,0,0,0.8), 0 1px 2px rgba(255,255,255,0.08);
+            border: 1px solid #282a2e;
+        }
+        /* 320x240 LCD Screen */
+        .cores3-lcd {
+            width: 320px;
+            height: 240px;
+            background: #000000;
+            border-radius: 3px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Consolas, monospace;
+        }
+
+        /* LCD Top Bar (0 ~ 46px) */
+        .lcd-top {
+            width: 320px;
+            height: 46px;
+            background: #474747;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 4px 6px;
+            box-sizing: border-box;
+            border-bottom: 1px solid #222;
+        }
+        .lcd-text-area {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            flex-grow: 1;
+            overflow: hidden;
+            padding-left: 2px;
+        }
+        .lcd-step-title {
+            color: #ffd700;
+            font-size: 10px;
+            font-weight: bold;
+            font-family: monospace;
+            letter-spacing: 0.5px;
+            line-height: 12px;
+        }
+        .lcd-input-value {
+            color: #ffffff;
+            font-size: 17px;
+            font-weight: bold;
+            font-family: monospace;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: clip;
+            line-height: 24px;
+        }
+        .cursor-blink {
+            animation: kbdCursorBlink 0.85s infinite;
+        }
+        @keyframes kbdCursorBlink {
+            0%, 49% { opacity: 1; }
+            50%, 100% { opacity: 0; }
+        }
+        .lcd-top-btns {
+            display: flex;
+            gap: 6px;
+        }
+        .lcd-btn-bs {
+            width: 48px;
+            height: 38px;
+            background: #dc3545;
+            color: #ffffff;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+        }
+        .lcd-btn-ok {
+            width: 48px;
+            height: 38px;
+            background: #28a745;
+            color: #ffffff;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+        }
+
+        /* 3x3 Keypad Grid (Y: 48 ~ 182) */
+        .lcd-grid-3x3 {
+            width: 320px;
+            height: 136px;
+            background: #000000;
+            display: grid;
+            grid-template-columns: repeat(3, 100px);
+            grid-template-rows: repeat(3, 42px);
+            gap: 4px;
+            padding: 2px 6px;
+            box-sizing: border-box;
+            margin-top: 1px;
+        }
+        .grid-key {
+            background: #007bff;
+            color: #ffffff;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 15px;
+            font-weight: bold;
+            cursor: pointer;
+            box-sizing: border-box;
+            transition: filter 0.1s;
+        }
+        .grid-key:active, .grid-key.active {
+            background: #03E0 !important;
+            background-color: #00a884 !important;
+            outline: 2px solid #ffd700;
+            border: 2px solid #ffd700;
+            color: #ffffff;
+        }
+
+        /* Bottom Candidate / Aux Bar (Y: 186 ~ 238) */
+        .lcd-bottom-bar {
+            width: 320px;
+            height: 48px;
+            background: #000000;
+            display: flex;
+            align-items: center;
+            padding: 2px 6px;
+            box-sizing: border-box;
+            gap: 6px;
+        }
+        .aux-key {
+            flex: 1;
+            height: 44px;
+            background: #007bff;
+            color: #ffffff;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .aux-key.clr {
+            background: #780000;
+        }
+        .cand-key {
+            flex: 1;
+            height: 44px;
+            background: #007bff;
+            color: #ffffff;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .cand-key.cancel {
+            background: #dc3545;
+        }
+        .sym-key {
+            flex: 1;
+            height: 44px;
+            background: #007bff;
+            color: #ffffff;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        /* Bottom Silkscreen */
+        .chassis-bottom-label {
+            color: #838a95;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 1.2px;
+            text-transform: uppercase;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            text-shadow: 0 1px 1px rgba(0,0,0,0.8);
+            margin-bottom: 2px;
+        }
     </style>
 </head>
 <body>
@@ -116,14 +409,277 @@
     </ul>
     
     <h3>B. 9 宮格輸入法 (適用於密碼、靜態 IP、MQTT 設定)</h3>
-    <p>全面重構為直覺的雙層複合鍵盤：</p>
+    <p>系統全面導入針對 M5Stack CoreS3 觸控螢幕優化的 <strong>雙層九宮格複合鍵盤</strong>，徹底解決全鍵盤按鈕過小容易誤觸的問題。以下以 <code>STEP 1/3: MQTT SERVER</code> (輸入伺服器 IP: <code>192.168.1.100</code>) 為例進行實體硬體與界面模擬：</p>
+
+    <!-- CoreS3 Hardware & LCD 9-Grid Simulation Container -->
+    <div class="sim-container">
+        <h4 style="margin: 0 0 12px 0; color: #1f2328; font-size: 15px;">M5Stack CoreS3 實機觸控模擬器 (可直接點擊畫面互動操作)</h4>
+        
+        <!-- Preset Scenario Buttons -->
+        <div class="sim-controls">
+            <button class="sim-btn active" id="btnModeIdle" onclick="simSetMode('idle')">狀態 A: 預設輔助列 (a/A, SYM, SPC, CLR)</button>
+            <button class="sim-btn" id="btnModeDef" onclick="simSetMode('cand_def')">狀態 B: 點選 [def 2] 展開候選字</button>
+            <button class="sim-btn" id="btnModeSym" onclick="simSetMode('cand_sym')">狀態 C: 點選 [SYM] 展開符號列</button>
+            <button class="sim-btn" style="color:#d63384;" onclick="simResetValue()">🔄 重置 IP (192.168.1.100)</button>
+        </div>
+
+        <!-- CoreS3 Hardware Case -->
+        <div class="cores3-chassis">
+            <!-- Top Sensor Apertures -->
+            <div class="chassis-top-bar">
+                <div class="mic-hole left" title="Left Microphone (ES7210)"></div>
+                <div class="camera-housing" title="GC0308 Camera">
+                    <div class="camera-lens"></div>
+                </div>
+                <div class="mic-hole right" title="Right Microphone (ES7210)"></div>
+            </div>
+
+            <!-- 2.0 Inch Screen Glass Panel -->
+            <div class="screen-bezel">
+                <!-- 320x240 LCD Screen Area -->
+                <div class="cores3-lcd" id="simLcd">
+                    
+                    <!-- Top Bar: Title, Value, BS, OK -->
+                    <div class="lcd-top">
+                        <div class="lcd-text-area">
+                            <div class="lcd-step-title" id="simTitle">STEP 1/3: MQTT SERVER</div>
+                            <div class="lcd-input-value"><span id="simDisplayVal">192.168.1.100</span><span class="cursor-blink">_</span></div>
+                        </div>
+                        <div class="lcd-top-btns">
+                            <div class="lcd-btn-bs" onclick="simBackSpace()" title="Backspace 退格">BS</div>
+                            <div class="lcd-btn-ok" onclick="simOkClick()" title="Confirm / Next Step 確認">OK</div>
+                        </div>
+                    </div>
+
+                    <!-- 3x3 Grid Keypad Area -->
+                    <div class="lcd-grid-3x3" id="simGrid">
+                        <!-- Row 1 -->
+                        <div class="grid-key" id="k0" onclick="simGridClick(0)">abc 1</div>
+                        <div class="grid-key" id="k1" onclick="simGridClick(1)">def 2</div>
+                        <div class="grid-key" id="k2" onclick="simGridClick(2)">ghi 3</div>
+                        <!-- Row 2 -->
+                        <div class="grid-key" id="k3" onclick="simGridClick(3)">jkl 4</div>
+                        <div class="grid-key" id="k4" onclick="simGridClick(4)">mno 5</div>
+                        <div class="grid-key" id="k5" onclick="simGridClick(5)">pqr 6</div>
+                        <!-- Row 3 -->
+                        <div class="grid-key" id="k6" onclick="simGridClick(6)">stu 7</div>
+                        <div class="grid-key" id="k7" onclick="simGridClick(7)">vwx 8</div>
+                        <div class="grid-key" id="k8" onclick="simGridClick(8)">yz 9 0</div>
+                    </div>
+
+                    <!-- Bottom Candidate / Auxiliary Dynamic Bar -->
+                    <div class="lcd-bottom-bar" id="simBottomBar">
+                        <!-- Rendered dynamically by JavaScript -->
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- Bottom Silkscreen -->
+            <div class="chassis-bottom-label">M5STACK CoreS3</div>
+        </div>
+
+        <div id="simToast" style="margin-top: 12px; font-size: 13px; font-weight: bold; color: #1a7f37; min-height: 20px;"></div>
+    </div>
+
+    <script>
+        const KBD_DEFS = [
+            { lower: "abc 1", upper: "ABC 1", candLower: ["a","b","c","1"], candUpper: ["A","B","C","1"] },
+            { lower: "def 2", upper: "DEF 2", candLower: ["d","e","f","2"], candUpper: ["D","E","F","2"] },
+            { lower: "ghi 3", upper: "GHI 3", candLower: ["g","h","i","3"], candUpper: ["G","H","I","3"] },
+            { lower: "jkl 4", upper: "JKL 4", candLower: ["j","k","l","4"], candUpper: ["J","K","L","4"] },
+            { lower: "mno 5", upper: "MNO 5", candLower: ["m","n","o","5"], candUpper: ["M","N","O","5"] },
+            { lower: "pqr 6", upper: "PQR 6", candLower: ["p","q","r","6"], candUpper: ["P","Q","R","6"] },
+            { lower: "stu 7", upper: "STU 7", candLower: ["s","t","u","7"], candUpper: ["S","T","U","7"] },
+            { lower: "vwx 8", upper: "VWX 8", candLower: ["v","w","x","8"], candUpper: ["V","W","X","8"] },
+            { lower: "yz 9 0", upper: "YZ 9 0", candLower: ["y","z","9","0"], candUpper: ["Y","Z","9","0"] }
+        ];
+
+        let simState = {
+            currentVal: "192.168.1.100",
+            activeKey: -1, // -1: Aux Bar, 0~8: Key candidate, 9: SYM
+            isUpper: false
+        };
+
+        function updateSimUI() {
+            // Update display text
+            const disp = document.getElementById("simDisplayVal");
+            let str = simState.currentVal;
+            if (str.length > 16) str = str.substring(str.length - 16);
+            disp.textContent = str;
+
+            // Update 3x3 keys text & active highlight
+            for (let i = 0; i < 9; i++) {
+                const el = document.getElementById("k" + i);
+                el.textContent = simState.isUpper ? KBD_DEFS[i].upper : KBD_DEFS[i].lower;
+                if (simState.activeKey === i) {
+                    el.classList.add("active");
+                } else {
+                    el.classList.remove("active");
+                }
+            }
+
+            // Update Bottom Bar
+            const bar = document.getElementById("simBottomBar");
+            bar.innerHTML = "";
+
+            if (simState.activeKey === -1) {
+                // Aux bar: a/A, SYM, SPC, CLR
+                const btnCase = document.createElement("div");
+                btnCase.className = "aux-key";
+                btnCase.textContent = simState.isUpper ? "A/a" : "a/A";
+                btnCase.style.background = simState.isUpper ? "#d97706" : "#007bff";
+                btnCase.onclick = () => { simState.isUpper = !simState.isUpper; updateSimUI(); };
+                bar.appendChild(btnCase);
+
+                const btnSym = document.createElement("div");
+                btnSym.className = "aux-key";
+                btnSym.textContent = "SYM";
+                btnSym.onclick = () => { simState.activeKey = 9; updateSimUI(); highlightPresetBtn("btnModeSym"); };
+                bar.appendChild(btnSym);
+
+                const btnSpc = document.createElement("div");
+                btnSpc.className = "aux-key";
+                btnSpc.textContent = "SPC";
+                btnSpc.onclick = () => { simState.currentVal += " "; updateSimUI(); };
+                bar.appendChild(btnSpc);
+
+                const btnClr = document.createElement("div");
+                btnClr.className = "aux-key clr";
+                btnClr.textContent = "CLR";
+                btnClr.onclick = () => { simState.currentVal = ""; updateSimUI(); };
+                bar.appendChild(btnClr);
+
+            } else if (simState.activeKey >= 0 && simState.activeKey <= 8) {
+                // Candidates for selected key
+                const kDef = KBD_DEFS[simState.activeKey];
+                const list = simState.isUpper ? kDef.candUpper : kDef.candLower;
+                list.forEach(ch => {
+                    const btn = document.createElement("div");
+                    btn.className = "cand-key";
+                    btn.textContent = ch;
+                    btn.onclick = () => {
+                        simState.currentVal += ch;
+                        simState.activeKey = -1;
+                        updateSimUI();
+                        highlightPresetBtn("btnModeIdle");
+                    };
+                    bar.appendChild(btn);
+                });
+                // Cancel button [X]
+                const btnX = document.createElement("div");
+                btnX.className = "cand-key cancel";
+                btnX.textContent = "X";
+                btnX.onclick = () => {
+                    simState.activeKey = -1;
+                    updateSimUI();
+                    highlightPresetBtn("btnModeIdle");
+                };
+                bar.appendChild(btnX);
+
+            } else if (simState.activeKey === 9) {
+                // Symbols: . : / @ - X
+                const syms = [".", ":", "/", "@", "-"];
+                syms.forEach(s => {
+                    const btn = document.createElement("div");
+                    btn.className = "sym-key";
+                    btn.textContent = s;
+                    btn.onclick = () => {
+                        simState.currentVal += s;
+                        simState.activeKey = -1;
+                        updateSimUI();
+                        highlightPresetBtn("btnModeIdle");
+                    };
+                    bar.appendChild(btn);
+                });
+                const btnX = document.createElement("div");
+                btnX.className = "cand-key cancel";
+                btnX.textContent = "X";
+                btnX.onclick = () => {
+                    simState.activeKey = -1;
+                    updateSimUI();
+                    highlightPresetBtn("btnModeIdle");
+                };
+                bar.appendChild(btnX);
+            }
+        }
+
+        function simGridClick(idx) {
+            if (simState.activeKey === idx) {
+                simState.activeKey = -1;
+                highlightPresetBtn("btnModeIdle");
+            } else {
+                simState.activeKey = idx;
+                if (idx === 1) highlightPresetBtn("btnModeDef");
+                else clearPresetHighlight();
+            }
+            updateSimUI();
+        }
+
+        function simBackSpace() {
+            if (simState.currentVal.length > 0) {
+                simState.currentVal = simState.currentVal.substring(0, simState.currentVal.length - 1);
+            }
+            updateSimUI();
+        }
+
+        function simOkClick() {
+            const toast = document.getElementById("simToast");
+            toast.textContent = "✓ 已確認儲存 MQTT SERVER: " + (simState.currentVal || "(空)");
+            setTimeout(() => { toast.textContent = ""; }, 2500);
+        }
+
+        function simResetValue() {
+            simState.currentVal = "192.168.1.100";
+            simState.activeKey = -1;
+            highlightPresetBtn("btnModeIdle");
+            updateSimUI();
+        }
+
+        function simSetMode(mode) {
+            highlightPresetBtn(mode === 'idle' ? 'btnModeIdle' : mode === 'cand_def' ? 'btnModeDef' : 'btnModeSym');
+            if (mode === 'idle') {
+                simState.activeKey = -1;
+            } else if (mode === 'cand_def') {
+                simState.activeKey = 1; // 'def 2'
+            } else if (mode === 'cand_sym') {
+                simState.activeKey = 9; // SYM
+            }
+            updateSimUI();
+        }
+
+        function highlightPresetBtn(id) {
+            document.querySelectorAll('.sim-btn').forEach(b => b.classList.remove('active'));
+            const el = document.getElementById(id);
+            if (el) el.classList.add('active');
+        }
+
+        function clearPresetHighlight() {
+            document.querySelectorAll('.sim-btn').forEach(b => b.classList.remove('active'));
+        }
+
+        // Initialize simulation UI on page load
+        updateSimUI();
+    </script>
+
     <ul>
-        <li><strong>頂部資訊與控制</strong>：左側顯示當前編輯欄位與文字游標，右側配置紅色 <strong>BS</strong> (退格鍵) 與綠色 <strong>OK</strong> (確認鍵)。</li>
-        <li><strong>中間 3x3 九宮格</strong>：提供 9 顆大尺寸按鈕 (<code>abc 1</code> ~ <code>yz 9 0</code>)，點擊展開底部候選字。</li>
-        <li><strong>底部候選列 / 快捷功能</strong>：
+        <li><strong>頂部資訊與控制列 (Y: 0 ~ 46)</strong>：
             <ul>
-                <li>點擊九宮格後：水平展開 4 個字元候選按鈕與紅色 <strong>X</strong> 取消鍵。</li>
-                <li>未展開狀態：提供 <strong>a/A</strong> (大小寫切換)、<strong>SYM</strong> (符號 <code>.:/@-</code>)、<strong>SPC</strong> (空格) 與 <strong>CLR</strong> (全部清除)。</li>
+                <li><strong>設定項目標題</strong>：以<span style="color:#b58900; font-weight:bold;">黃色字體</span>提示當前步驟（如 <code>STEP 1/3: MQTT SERVER</code>）。</li>
+                <li><strong>當前數值與游標</strong>：白色大字體顯示當前字串，附帶實時閃爍游標 <code>_</code>。若輸入超過 16 字元會自動捲動保留尾部內容。</li>
+                <li><strong>功能按鍵</strong>：右上角配置紅色 <strong>BS</strong> (退格刪除鍵) 與綠色 <strong>OK</strong> (確認完成鍵)。</li>
+            </ul>
+        </li>
+        <li><strong>中間 3x3 九宮格 (Y: 48 ~ 182)</strong>：
+            <ul>
+                <li>提供 9 顆大尺寸按鈕 (<code>abc 1</code> ~ <code>yz 9 0</code>)，手指輕觸即選中。</li>
+                <li>被點選的按鍵將轉為<strong>青綠色底色</strong>並加上<strong>雙層高亮黃色邊框</strong>，直觀標註當前聚焦按鍵。</li>
+            </ul>
+        </li>
+        <li><strong>底部動態候選列 (Y: 186 ~ 238)</strong>：
+            <ul>
+                <li><strong>候選字狀態</strong>：點擊九宮格按鈕後，底部立即展開該按鈕對應的 4 個字元候選按鈕（例如 <code>[d] [e] [f] [2]</code>）以及紅色 <code>[X]</code> 取消鍵。輕點任一候選字即可輸入該字並自動收回候選列。</li>
+                <li><strong>閒置輔助狀態</strong>：未展開候選時，提供 <strong>a/A</strong> (英文大小寫切換)、<strong>SYM</strong> (符號清單 <code>.:/@-</code>)、<strong>SPC</strong> (空格輸入) 與 <strong>CLR</strong> (全部清空)。</li>
             </ul>
         </li>
     </ul>
