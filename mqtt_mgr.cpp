@@ -101,13 +101,15 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
 
 bool parseAdvantechPayload(const char* topic, byte* payload, unsigned int length) {
     String tStr = String(topic);
-    bool matchTopic = (tStr.startsWith("Advantech/") && tStr.endsWith("/data")) || 
-                      (tStr.startsWith("ADVANTECH/") && tStr.endsWith("/data")) ||
-                      (tStr.indexOf("Advantech/") != -1) ||
-                      (tStr.indexOf("RSSI") != -1) ||
-                      (tStr.indexOf("rssi") != -1);
+    String tUpper = tStr;
+    tUpper.toUpperCase();
+
+    // 1. TOPIC 不含 DB 或 RSSI 則不更新
+    if (tUpper.indexOf("DB") == -1 && tUpper.indexOf("RSSI") == -1) {
+        return false;
+    }
     
-    // Extract SN from topic if possible: Advantech/{SN}/data
+    // Extract SN from topic if possible: Advantech/{SN}/...
     if (tStr.startsWith("Advantech/") || tStr.startsWith("ADVANTECH/")) {
         int firstSlash = tStr.indexOf('/');
         int secondSlash = tStr.indexOf('/', firstSlash + 1);
@@ -119,7 +121,6 @@ bool parseAdvantechPayload(const char* topic, byte* payload, unsigned int length
     JsonDocument doc;
     DeserializationError err = deserializeJson(doc, payload, length);
     if (err) {
-        if (!matchTopic) return false;
         auto dt = M5.Rtc.getDateTime();
         char buf[16];
         sprintf(buf, "%02d:%02d:%02d", dt.time.hours, dt.time.minutes, dt.time.seconds);
@@ -157,5 +158,5 @@ bool parseAdvantechPayload(const char* topic, byte* payload, unsigned int length
     else if (doc["vib"].is<float>()) { latestDB = doc["vib"].as<float>(); hasDbRssiData = true; }
     else if (doc["value"].is<float>()) { latestDB = doc["value"].as<float>(); hasDbRssiData = true; }
 
-    return matchTopic || hasDbRssiData;
+    return true;
 }

@@ -200,43 +200,47 @@ void updateDbClock() {
     auto dt = M5.Rtc.getDateTime();
     if (dt.time.seconds == ls) return;
     ls = dt.time.seconds;
-    M5.Display.fillRect(215, 6, 100, 22, DARKGREY); 
+    M5.Display.fillRect(215, 4, 100, 20, DARKGREY); 
     M5.Display.setTextColor(WHITE); 
     M5.Display.setTextSize(2);
-    M5.Display.setCursor(215, 8); 
+    M5.Display.setCursor(215, 6); 
     M5.Display.printf("%02d:%02d:%02d", dt.time.hours, dt.time.minutes, dt.time.seconds);
 }
 
 void drawDbRssiDashboard() {
     M5.Display.fillScreen(BLACK);
     
-    // Top Bar (Y: 0 ~ 32)
-    M5.Display.fillRect(0, 0, 320, 32, DARKGREY);
+    // Top Bar (Y: 0 ~ 28)
+    M5.Display.fillRect(0, 0, 320, 28, DARKGREY);
     M5.Display.setTextColor(CYAN);
     M5.Display.setTextSize(2);
-    M5.Display.setCursor(8, 8);
+    M5.Display.setCursor(8, 6);
     M5.Display.print("DB / RSSI MONITOR");
     updateDbClock();
     
-    // Info Bar (Y: 34 ~ 64)
-    M5.Display.fillRect(0, 34, 320, 30, BLACK);
+    // Info Bar: 2 Separate Lines (Y: 29 ~ 72)
+    M5.Display.fillRect(0, 29, 320, 43, BLACK);
+    // Line 1: SN
     M5.Display.setTextSize(2);
     M5.Display.setTextColor(WHITE);
-    M5.Display.setCursor(8, 40);
+    M5.Display.setCursor(8, 31);
     M5.Display.print("SN: ");
     M5.Display.setTextColor(YELLOW);
     M5.Display.print(latestSN.length() > 0 ? latestSN : "--");
     
+    // Line 2: Time
+    M5.Display.setTextColor(WHITE);
+    M5.Display.setCursor(8, 51);
+    M5.Display.print("Time: ");
     M5.Display.setTextColor(LIGHTGREY);
-    M5.Display.setCursor(195, 40);
-    M5.Display.printf("T: %s", latestDataTime.length() > 0 ? latestDataTime.c_str() : "--");
+    M5.Display.print(latestDataTime.length() > 0 ? latestDataTime : "--");
     
-    // Left Card (RSSI) - X: 6, Y: 66, W: 150, H: 134
-    M5.Display.drawRoundRect(6, 66, 150, 134, 6, DARKGREY);
-    M5.Display.fillRect(7, 67, 148, 132, 0x0008);
+    // Left Card (RSSI) - X: 6, Y: 74, W: 150, H: 126
+    M5.Display.drawRoundRect(6, 74, 150, 126, 6, DARKGREY);
+    M5.Display.fillRect(7, 75, 148, 124, 0x0008);
     M5.Display.setTextSize(2);
     M5.Display.setTextColor(WHITE);
-    M5.Display.drawCenterString("RSSI", 81, 74);
+    M5.Display.drawCenterString("RSSI", 81, 80);
     
     if (hasDbRssiData) {
         // User rule: -80 > -100 is yellow
@@ -248,12 +252,12 @@ void drawDbRssiDashboard() {
         }
         M5.Display.setTextSize(4);
         M5.Display.setTextColor(rssiColor);
-        M5.Display.drawCenterString(String((int)latestRSSI), 81, 105);
+        M5.Display.drawCenterString(String((int)latestRSSI), 81, 106);
         M5.Display.setTextSize(2);
         M5.Display.setTextColor(LIGHTGREY);
-        M5.Display.drawCenterString("dBm", 81, 145);
+        M5.Display.drawCenterString("dBm", 81, 142);
         
-        int barX = 14, barY = 172, barW = 134, barH = 16;
+        int barX = 14, barY = 168, barW = 134, barH = 16;
         M5.Display.drawRect(barX, barY, barW, barH, DARKGREY);
         int pct = map(constrain((int)latestRSSI, -120, -40), -120, -40, 0, barW - 4);
         M5.Display.fillRect(barX + 2, barY + 2, pct, barH - 4, rssiColor);
@@ -261,18 +265,18 @@ void drawDbRssiDashboard() {
     } else {
         M5.Display.setTextSize(4);
         M5.Display.setTextColor(DARKGREY);
-        M5.Display.drawCenterString("--", 81, 105);
+        M5.Display.drawCenterString("--", 81, 106);
         M5.Display.setTextSize(2);
         M5.Display.setTextColor(LIGHTGREY);
-        M5.Display.drawCenterString("dBm", 81, 145);
+        M5.Display.drawCenterString("dBm", 81, 142);
     }
     
-    // Right Card (DB LEVEL) - X: 164, Y: 66, W: 150, H: 134
-    M5.Display.drawRoundRect(164, 66, 150, 134, 6, DARKGREY);
-    M5.Display.fillRect(165, 67, 148, 132, 0x0008);
+    // Right Card (DB LEVEL) - X: 164, Y: 74, W: 150, H: 126
+    M5.Display.drawRoundRect(164, 74, 150, 126, 6, DARKGREY);
+    M5.Display.fillRect(165, 75, 148, 124, 0x0008);
     M5.Display.setTextSize(2);
     M5.Display.setTextColor(WHITE);
-    M5.Display.drawCenterString("DB LEVEL", 239, 74);
+    M5.Display.drawCenterString("DB LEVEL", 239, 80);
     
     if (hasDbRssiData) {
         uint32_t dbColor = GREEN;
@@ -287,12 +291,12 @@ void drawDbRssiDashboard() {
         M5.Display.setTextColor(dbColor);
         char dbBuf[16];
         sprintf(dbBuf, "%.1f", latestDB);
-        M5.Display.drawCenterString(dbBuf, 239, 105);
+        M5.Display.drawCenterString(dbBuf, 239, 106);
         M5.Display.setTextSize(2);
         M5.Display.setTextColor(LIGHTGREY);
-        M5.Display.drawCenterString("dB", 239, 145);
+        M5.Display.drawCenterString("dB", 239, 142);
         
-        int barX = 172, barY = 172, barW = 134, barH = 16;
+        int barX = 172, barY = 168, barW = 134, barH = 16;
         M5.Display.drawRect(barX, barY, barW, barH, DARKGREY);
         int pctDb;
         if (latestDB < 0) {
@@ -305,10 +309,10 @@ void drawDbRssiDashboard() {
     } else {
         M5.Display.setTextSize(4);
         M5.Display.setTextColor(DARKGREY);
-        M5.Display.drawCenterString("--", 239, 105);
+        M5.Display.drawCenterString("--", 239, 106);
         M5.Display.setTextSize(2);
         M5.Display.setTextColor(LIGHTGREY);
-        M5.Display.drawCenterString("dB", 239, 145);
+        M5.Display.drawCenterString("dB", 239, 142);
     }
     
     // Bottom Bar (Y: 204 ~ 238)
@@ -576,17 +580,46 @@ void updateLanStaticDisplay() {
 }
 
 void drawRtcSetting() {
-    M5.Display.fillScreen(BLACK); M5.Display.setTextSize(2); M5.Display.setTextColor(ORANGE); M5.Display.drawCenterString("Set RTC Time", 160, 20);
-    String lbls[] = {"Y", "M", "D", "H", "Min"}; int vls[] = {rtcY, rtcM, rtcD, rtcH, rtcMin};
-    for(int i=0; i<5; i++) {
-        M5.Display.setTextColor(i == rtcSetIdx ? YELLOW : WHITE);
-        M5.Display.drawCenterString(String(vls[i]).c_str(), 40 + i * 60, 75);
-        M5.Display.setTextSize(1); M5.Display.drawCenterString(lbls[i].c_str(), 40 + i * 60, 105); M5.Display.setTextSize(2);
+    M5.Display.fillScreen(BLACK);
+    M5.Display.setTextSize(2);
+    M5.Display.setTextColor(ORANGE);
+    M5.Display.drawCenterString("Set RTC Time", 160, 12);
+    M5.Display.setTextSize(1);
+    M5.Display.setTextColor(LIGHTGREY);
+    M5.Display.drawCenterString("Tap field to select, then use +/-", 160, 32);
+
+    String lbls[] = {"Y", "M", "D", "H", "Min"};
+    int vls[] = {rtcY, rtcM, rtcD, rtcH, rtcMin};
+
+    // 5 Touch Field Cards (Y: 46 ~ 116, H: 70, W: 56)
+    for (int i = 0; i < 5; i++) {
+        int bx = 8 + i * 62;
+        bool isSel = (i == rtcSetIdx);
+        if (isSel) {
+            M5.Display.fillRoundRect(bx, 46, 56, 70, 6, 0x0015);
+            M5.Display.drawRoundRect(bx, 46, 56, 70, 6, YELLOW);
+            M5.Display.drawRoundRect(bx + 1, 47, 54, 68, 6, YELLOW);
+            M5.Display.setTextColor(YELLOW);
+        } else {
+            M5.Display.fillRoundRect(bx, 46, 56, 70, 6, 0x2104);
+            M5.Display.drawRoundRect(bx, 46, 56, 70, 6, DARKGREY);
+            M5.Display.setTextColor(WHITE);
+        }
+        
+        M5.Display.setTextSize(2);
+        M5.Display.drawCenterString(String(vls[i]).c_str(), bx + 28, 60);
+        
+        M5.Display.setTextSize(1);
+        M5.Display.setTextColor(isSel ? YELLOW : LIGHTGREY);
+        M5.Display.drawCenterString(lbls[i].c_str(), bx + 28, 92);
     }
-    drawButton(10, 140, 95, 45, "+", BLUE, 2);  
-    drawButton(112, 140, 95, 45, "-", RED, 2);   
-    drawButton(215, 140, 95, 45, "Next", ORANGE, 2); 
-    drawButton(110, 190, 100, 45, "SAVE", GREEN);
+
+    // Huge [+] and [-] buttons (Y: 126 ~ 174, H: 48)
+    drawButton(16, 126, 136, 48, "+", BLUE, 3);
+    drawButton(168, 126, 136, 48, "-", RED, 3);
+
+    // Wide [SAVE] button (Y: 184 ~ 230, H: 46)
+    drawButton(16, 184, 288, 46, "SAVE", GREEN, 2);
 }
 
 void updateMqttStepDisplay() {

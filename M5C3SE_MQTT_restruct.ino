@@ -231,60 +231,74 @@ void handleTouch() {
                 return;
             }
             
-            if (y > 140 && y < 185) {
-                if (x < 105) { // +
-                    bool doStep = false;
-                    if (detail.wasPressed()) {
-                        rtcActiveBtn = 1;
-                        rtcPressStart = millis();
-                        rtcLastStep = millis();
-                        doStep = true;
-                    } else if (detail.isPressed() && rtcActiveBtn == 1) {
-                        if (millis() - rtcPressStart > 500 && millis() - rtcLastStep >= 250) {
-                            doStep = true;
-                            rtcLastStep = millis();
+            // 1. 直接點選任一時間欄位區域 (Y: 46 ~ 116)
+            if (y >= 46 && y <= 116) {
+                if (detail.wasClicked()) {
+                    for (int i = 0; i < 5; i++) {
+                        int bx = 8 + i * 62;
+                        if (x >= bx && x < bx + 56) {
+                            rtcSetIdx = i;
+                            drawRtcSetting();
+                            delay(100);
+                            return;
                         }
                     }
-                    if (doStep) {
-                        if (rtcSetIdx == 0) rtcY++; 
-                        else if (rtcSetIdx == 1) rtcM = (rtcM % 12) + 1;
-                        else if (rtcSetIdx == 2) rtcD = (rtcD % 31) + 1; 
-                        else if (rtcSetIdx == 3) rtcH = (rtcH + 1) % 24;
-                        else rtcMin = (rtcMin + 1) % 60;
-                        drawRtcSetting(); 
-                    }
-                    return;
-                } else if (x >= 105 && x < 210) { // -
-                    bool doStep = false;
-                    if (detail.wasPressed()) {
-                        rtcActiveBtn = 2;
-                        rtcPressStart = millis();
-                        rtcLastStep = millis();
-                        doStep = true;
-                    } else if (detail.isPressed() && rtcActiveBtn == 2) {
-                        if (millis() - rtcPressStart > 500 && millis() - rtcLastStep >= 250) {
-                            doStep = true;
-                            rtcLastStep = millis();
-                        }
-                    }
-                    if (doStep) {
-                        if (rtcSetIdx == 0) rtcY--; 
-                        else if (rtcSetIdx == 1) rtcM = (rtcM > 1) ? rtcM - 1 : 12;
-                        else if (rtcSetIdx == 2) rtcD = (rtcD > 1) ? rtcD - 1 : 31; 
-                        else if (rtcSetIdx == 3) rtcH = (rtcH > 0) ? rtcH - 1 : 23;
-                        else rtcMin = (rtcMin > 0) ? rtcMin - 1 : 59;
-                        drawRtcSetting(); 
-                    }
-                    return;
-                } else if (x >= 210) { // Next
-                    if (detail.wasClicked()) {
-                        rtcSetIdx = (rtcSetIdx + 1) % 5; 
-                        drawRtcSetting(); 
-                        delay(120);
-                    }
-                    return;
                 }
-            } else if (y > 190 && x > 110 && x < 210) { // SAVE
+                return;
+            }
+            
+            // 2. 按 [+] 鍵調整 (Y: 126 ~ 176, X: 16 ~ 152)
+            if (y >= 126 && y <= 176 && x >= 16 && x <= 152) {
+                bool doStep = false;
+                if (detail.wasPressed()) {
+                    rtcActiveBtn = 1;
+                    rtcPressStart = millis();
+                    rtcLastStep = millis();
+                    doStep = true;
+                } else if (detail.isPressed() && rtcActiveBtn == 1) {
+                    if (millis() - rtcPressStart > 500 && millis() - rtcLastStep >= 250) {
+                        doStep = true;
+                        rtcLastStep = millis();
+                    }
+                }
+                if (doStep) {
+                    if (rtcSetIdx == 0) rtcY++; 
+                    else if (rtcSetIdx == 1) rtcM = (rtcM % 12) + 1;
+                    else if (rtcSetIdx == 2) rtcD = (rtcD % 31) + 1; 
+                    else if (rtcSetIdx == 3) rtcH = (rtcH + 1) % 24;
+                    else rtcMin = (rtcMin + 1) % 60;
+                    drawRtcSetting(); 
+                }
+                return;
+            }
+            
+            // 3. 按 [-] 鍵調整 (Y: 126 ~ 176, X: 168 ~ 304)
+            if (y >= 126 && y <= 176 && x >= 168 && x <= 304) {
+                bool doStep = false;
+                if (detail.wasPressed()) {
+                    rtcActiveBtn = 2;
+                    rtcPressStart = millis();
+                    rtcLastStep = millis();
+                    doStep = true;
+                } else if (detail.isPressed() && rtcActiveBtn == 2) {
+                    if (millis() - rtcPressStart > 500 && millis() - rtcLastStep >= 250) {
+                        doStep = true;
+                        rtcLastStep = millis();
+                    }
+                }
+                if (doStep) {
+                    if (rtcSetIdx == 0) rtcY--; 
+                    else if (rtcSetIdx == 1) rtcM = (rtcM > 1) ? rtcM - 1 : 12;
+                    else if (rtcSetIdx == 2) rtcD = (rtcD > 1) ? rtcD - 1 : 31; 
+                    else if (rtcSetIdx == 3) rtcH = (rtcH > 0) ? rtcH - 1 : 23;
+                    else rtcMin = (rtcMin > 0) ? rtcMin - 1 : 59;
+                    drawRtcSetting(); 
+                }
+                return;
+            }
+            
+            // 4. 按 [SAVE] 儲存 (Y: 184 ~ 232, X: 16 ~ 304)
+            if (y >= 184 && y <= 232 && x >= 16 && x <= 304) {
                 if (detail.wasClicked()) {
                     m5::rtc_datetime_t dt; 
                     dt.date.year = rtcY; 
