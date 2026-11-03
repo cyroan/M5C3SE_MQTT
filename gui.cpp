@@ -255,7 +255,7 @@ void drawDbRssiDashboard() {
         M5.Display.drawCenterString(String((int)latestRSSI), 81, 106);
         M5.Display.setTextSize(2);
         M5.Display.setTextColor(LIGHTGREY);
-        M5.Display.drawCenterString("dBm", 81, 142);
+        M5.Display.drawCenterString("dB", 81, 142);
         
         int barX = 14, barY = 168, barW = 134, barH = 16;
         M5.Display.drawRect(barX, barY, barW, barH, DARKGREY);
@@ -268,24 +268,26 @@ void drawDbRssiDashboard() {
         M5.Display.drawCenterString("--", 81, 106);
         M5.Display.setTextSize(2);
         M5.Display.setTextColor(LIGHTGREY);
-        M5.Display.drawCenterString("dBm", 81, 142);
+        M5.Display.drawCenterString("dB", 81, 142);
     }
     
-    // Right Card (DB LEVEL) - X: 164, Y: 74, W: 150, H: 126
+    // Right Card (LSNR) - X: 164, Y: 74, W: 150, H: 126
     M5.Display.drawRoundRect(164, 74, 150, 126, 6, DARKGREY);
     M5.Display.fillRect(165, 75, 148, 124, 0x0008);
     M5.Display.setTextSize(2);
     M5.Display.setTextColor(WHITE);
-    M5.Display.drawCenterString("DB LEVEL", 239, 80);
+    M5.Display.drawCenterString("LSNR", 239, 80);
     
     if (hasDbRssiData) {
         uint32_t dbColor = GREEN;
-        if (latestDB < 0) {
-            if (latestDB <= -80 && latestDB >= -100) dbColor = YELLOW;
-            else if (latestDB < -100) dbColor = RED;
-        } else {
-            if (latestDB >= 85) dbColor = RED;
-            else if (latestDB >= 70) dbColor = YELLOW;
+        if (latestDB <= -80 && latestDB >= -100) {
+            dbColor = YELLOW;
+        } else if (latestDB < -100) {
+            dbColor = RED;
+        } else if (latestDB < 0 && latestDB >= -10) {
+            dbColor = YELLOW;
+        } else if (latestDB < -10 && latestDB > -80) {
+            dbColor = RED;
         }
         M5.Display.setTextSize(4);
         M5.Display.setTextColor(dbColor);
@@ -299,7 +301,9 @@ void drawDbRssiDashboard() {
         int barX = 172, barY = 168, barW = 134, barH = 16;
         M5.Display.drawRect(barX, barY, barW, barH, DARKGREY);
         int pctDb;
-        if (latestDB < 0) {
+        if (latestDB >= -25 && latestDB <= 25) {
+            pctDb = map(constrain((int)latestDB, -20, 15), -20, 15, 0, barW - 4);
+        } else if (latestDB < 0) {
             pctDb = map(constrain((int)latestDB, -120, -40), -120, -40, 0, barW - 4);
         } else {
             pctDb = map(constrain((int)latestDB, 30, 110), 30, 110, 0, barW - 4);

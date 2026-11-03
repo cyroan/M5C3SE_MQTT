@@ -59,7 +59,16 @@
 
 ## 版本演進 (Development Log)
 
-### v1.1.36 (Latest)
+### v1.1.37 (Latest)
+- **RTC 觸控選取修復**：
+  - 修復 loop() 中因手開放開判定遺漏導致欄位無法切換與 SAVE 無法點選之問題。
+  - 將 5 個時間區塊 (年/月/日/時/分) 與 SAVE 改為 wasPressed 按壓即時觸發，點擊零延遲立即切換。
+- **DB/RSSI 模式擴充 (uplink/# & LSNR)**：
+  - MQTT 自動追加訂閱 uplink/# 主題。
+  - 支援解析 LoRa/Uplink 之 rssi 與 lsnr（單位均為 dB），並於雙卡片中顯示 RSSI (dB) 與 LSNR (dB)。
+  - uplink/# 訊息僅供 DB/RSSI 模式顯示，不干擾且不顯示於原有的 MQTT MONITOR 訊息記錄中。
+
+### v1.1.36
 - **DB/RSSI 顯示與過濾優化**：
   - 將 SN (設備序號) 與 Time (資料時間) 分為獨立兩行清晰呈現。
   - 加入 Topic 嚴格過濾：僅當接收到的 MQTT Topic 包含 DB 或 RSSI（不限大小寫）時才更新此項內容與畫面。

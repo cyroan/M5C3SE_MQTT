@@ -39,6 +39,8 @@ void reconnectMqtt() {
             Serial.printf("Subscribe to [%s] %s\n", mqttTopicSub.c_str(), subOk ? "SUCCESS" : "FAILED");
             bool subAdv = mqttClient.subscribe("Advantech/+/data");
             Serial.printf("Subscribe to [Advantech/+/data] %s\n", subAdv ? "SUCCESS" : "FAILED");
+            bool subUplink = mqttClient.subscribe("uplink/#");
+            Serial.printf("Subscribe to [uplink/#] %s\n", subUplink ? "SUCCESS" : "FAILED");
             M5.Display.fillRect(0, 190, 320, 15, BLACK); 
         } else {
             Serial.printf("MQTT Connect Failed, rc=%d\n", mqttClient.state());
@@ -71,9 +73,16 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     auto dt = M5.Rtc.getDateTime();
     char ts[32]; 
     sprintf(ts, "%02d:%02d:%02d", dt.time.hours, dt.time.minutes, dt.time.seconds);
-    msgHistory[historyWriteIdx] = {String(topic), pl, String(ts)};
-    historyWriteIdx = (historyWriteIdx + 1) % 10; 
-    if (historyCount < 10) historyCount++;
+
+    String tStr = String(topic);
+    bool isUplink = tStr.startsWith("uplink/") || tStr == "uplink";
+
+    // uplink 的內容不用 SHOW 在 MQTT MONITOR 中
+    if (!isUplink) {
+        msgHistory[historyWriteIdx] = {tStr, pl, String(ts)};
+        historyWriteIdx = (historyWriteIdx + 1) % 10; 
+        if (historyCount < 10) historyCount++;
+    }
     
     if (sdAvailable) {
         File file = SD.open("/RECEIVR.TXT", FILE_APPEND);
@@ -96,7 +105,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
         if (currentState == STATE_DB_RSSI) drawDbRssiDashboard();
     }
 
-    if (currentState == STATE_RUNNING) updateRunningUI();
+    if (currentState == STATE_RUNNING && !isUplink) updateRunningUI();
 }
 
 bool parseAdvantechPayload(const char* topic, byte* payload, unsigned int length) {
@@ -104,13 +113,28 @@ bool parseAdvantechPayload(const char* topic, byte* payload, unsigned int length
     String tUpper = tStr;
     tUpper.toUpperCase();
 
-    // 1. TOPIC 不含 DB 或 RSSI 則不更新
-    if (tUpper.indexOf("DB") == -1 && tUpper.indexOf("RSSI") == -1) {
+    // 支援 uplink/#, Advantech/+/data 以及主題含 RSSI, LSNR, DB
+    bool matchTopic = tStr.startsWith("uplink/") || tStr == "uplink" ||
+                      tStr.startsWith("Advantech/") || tStr.startsWith("ADVANTECH/") ||
+                      tUpper.indexOf("UPLINK") != -1 ||
+                      tUpper.indexOf("RSSI") != -1 ||
+                      tUpper.indexOf("LSNR") != -1 ||
+                      tUpper.indexOf("DB") != -1;
+
+    if (!matchTopic) {
         return false;
     }
     
-    // Extract SN from topic if possible: Advantech/{SN}/...
-    if (tStr.startsWith("Advantech/") || tStr.startsWith("ADVANTECH/")) {
+    // Extract SN from topic if possible: uplink/{devEUI}/... or Advantech/{SN}/...
+    if (tStr.startsWith("uplink/")) {
+        int s1 = tStr.indexOf('/');
+        int s2 = tStr.indexOf('/', s1 + 1);
+        if (s2 != -1) {
+            latestSN = tStr.substring(s1 + 1, s2);
+        } else {
+            latestSN = tStr.substring(s1 + 1);
+        }
+    } else if (tStr.startsWith("Advantech/") || tStr.startsWith("ADVANTECH/")) {
         int firstSlash = tStr.indexOf('/');
         int secondSlash = tStr.indexOf('/', firstSlash + 1);
         if (firstSlash != -1 && secondSlash != -1 && secondSlash > firstSlash + 1) {
@@ -128,8 +152,12 @@ bool parseAdvantechPayload(const char* topic, byte* payload, unsigned int length
         return true;
     }
 
-    // SN in JSON
-    if (doc["sn"].is<const char*>()) latestSN = doc["sn"].as<const char*>();
+    // SN in JSON (devEUI, deveui, dev_eui, device, sn, mac, devId)
+    if (doc["devEUI"].is<const char*>()) latestSN = doc["devEUI"].as<const char*>();
+    else if (doc["deveui"].is<const char*>()) latestSN = doc["deveui"].as<const char*>();
+    else if (doc["dev_eui"].is<const char*>()) latestSN = doc["dev_eui"].as<const char*>();
+    else if (doc["device"].is<const char*>()) latestSN = doc["device"].as<const char*>();
+    else if (doc["sn"].is<const char*>()) latestSN = doc["sn"].as<const char*>();
     else if (doc["SN"].is<const char*>()) latestSN = doc["SN"].as<const char*>();
     else if (doc["mac"].is<const char*>()) latestSN = doc["mac"].as<const char*>();
     else if (doc["devId"].is<const char*>()) latestSN = doc["devId"].as<const char*>();
@@ -145,18 +173,30 @@ bool parseAdvantechPayload(const char* topic, byte* payload, unsigned int length
         latestDataTime = String(buf);
     }
 
-    // RSSI
+    // RSSI (單位 dB)
     if (doc["rssi"].is<float>()) { latestRSSI = doc["rssi"].as<float>(); hasDbRssiData = true; }
     else if (doc["RSSI"].is<float>()) { latestRSSI = doc["RSSI"].as<float>(); hasDbRssiData = true; }
     else if (doc["gw_rssi"].is<float>()) { latestRSSI = doc["gw_rssi"].as<float>(); hasDbRssiData = true; }
 
-    // DB
-    if (doc["db"].is<float>()) { latestDB = doc["db"].as<float>(); hasDbRssiData = true; }
+    // LSNR / DB (單位 dB)
+    if (doc["lsnr"].is<float>()) { latestDB = doc["lsnr"].as<float>(); hasDbRssiData = true; }
+    else if (doc["LSNR"].is<float>()) { latestDB = doc["LSNR"].as<float>(); hasDbRssiData = true; }
+    else if (doc["snr"].is<float>()) { latestDB = doc["snr"].as<float>(); hasDbRssiData = true; }
+    else if (doc["SNR"].is<float>()) { latestDB = doc["SNR"].as<float>(); hasDbRssiData = true; }
+    else if (doc["db"].is<float>()) { latestDB = doc["db"].as<float>(); hasDbRssiData = true; }
     else if (doc["dB"].is<float>()) { latestDB = doc["dB"].as<float>(); hasDbRssiData = true; }
     else if (doc["DB"].is<float>()) { latestDB = doc["DB"].as<float>(); hasDbRssiData = true; }
     else if (doc["sound"].is<float>()) { latestDB = doc["sound"].as<float>(); hasDbRssiData = true; }
     else if (doc["vib"].is<float>()) { latestDB = doc["vib"].as<float>(); hasDbRssiData = true; }
     else if (doc["value"].is<float>()) { latestDB = doc["value"].as<float>(); hasDbRssiData = true; }
+
+    // Nested rxInfo (LoRaWAN metadata array)
+    if (doc["rxInfo"].is<JsonArray>() && doc["rxInfo"].size() > 0) {
+        auto rx = doc["rxInfo"][0];
+        if (rx["rssi"].is<float>()) { latestRSSI = rx["rssi"].as<float>(); hasDbRssiData = true; }
+        if (rx["lsnr"].is<float>()) { latestDB = rx["lsnr"].as<float>(); hasDbRssiData = true; }
+        else if (rx["snr"].is<float>()) { latestDB = rx["snr"].as<float>(); hasDbRssiData = true; }
+    }
 
     return true;
 }

@@ -186,7 +186,7 @@ void enterState(State ns) {
 
 void handleTouch() {
     auto detail = M5.Touch.getDetail(); 
-    if (!detail.isPressed() && !detail.wasClicked() && !detail.wasReleased()) return;
+    if (!detail.isPressed() && !detail.wasClicked() && !detail.wasReleased() && !detail.wasPressed()) return;
     int x = detail.x, y = detail.y;
     
     switch (currentState) {
@@ -231,24 +231,24 @@ void handleTouch() {
                 return;
             }
             
-            // 1. 直接點選任一時間欄位區域 (Y: 46 ~ 116)
-            if (y >= 46 && y <= 116) {
-                if (detail.wasClicked()) {
-                    for (int i = 0; i < 5; i++) {
-                        int bx = 8 + i * 62;
-                        if (x >= bx && x < bx + 56) {
-                            rtcSetIdx = i;
-                            drawRtcSetting();
-                            delay(100);
-                            return;
-                        }
-                    }
+            // 1. 直接點選任一時間欄位區域 (Y: 40 ~ 122)
+            if (y >= 40 && y <= 122) {
+                if (detail.wasPressed()) {
+                    int clickedIdx = 0;
+                    if (x < 67) clickedIdx = 0;
+                    else if (x < 129) clickedIdx = 1;
+                    else if (x < 191) clickedIdx = 2;
+                    else if (x < 253) clickedIdx = 3;
+                    else clickedIdx = 4;
+                    
+                    rtcSetIdx = clickedIdx;
+                    drawRtcSetting();
                 }
                 return;
             }
             
-            // 2. 按 [+] 鍵調整 (Y: 126 ~ 176, X: 16 ~ 152)
-            if (y >= 126 && y <= 176 && x >= 16 && x <= 152) {
+            // 2. 按 [+] 鍵調整 (Y: 126 ~ 176, X: 16 ~ 155)
+            if (y >= 126 && y <= 176 && x >= 16 && x <= 155) {
                 bool doStep = false;
                 if (detail.wasPressed()) {
                     rtcActiveBtn = 1;
@@ -272,8 +272,8 @@ void handleTouch() {
                 return;
             }
             
-            // 3. 按 [-] 鍵調整 (Y: 126 ~ 176, X: 168 ~ 304)
-            if (y >= 126 && y <= 176 && x >= 168 && x <= 304) {
+            // 3. 按 [-] 鍵調整 (Y: 126 ~ 176, X: 160 ~ 304)
+            if (y >= 126 && y <= 176 && x >= 160 && x <= 304) {
                 bool doStep = false;
                 if (detail.wasPressed()) {
                     rtcActiveBtn = 2;
@@ -297,9 +297,9 @@ void handleTouch() {
                 return;
             }
             
-            // 4. 按 [SAVE] 儲存 (Y: 184 ~ 232, X: 16 ~ 304)
-            if (y >= 184 && y <= 232 && x >= 16 && x <= 304) {
-                if (detail.wasClicked()) {
+            // 4. 按 [SAVE] 儲存 (Y: 180 ~ 238, X: 16 ~ 304)
+            if (y >= 180 && y <= 238 && x >= 16 && x <= 304) {
+                if (detail.wasPressed() || detail.wasClicked()) {
                     m5::rtc_datetime_t dt; 
                     dt.date.year = rtcY; 
                     dt.date.month = rtcM; 
@@ -562,7 +562,7 @@ void setup() {
 
 void loop() {
     M5.update(); 
-    if (M5.Touch.getCount() > 0) handleTouch();
+    if (M5.Touch.getCount() > 0 || M5.Touch.getDetail().wasClicked() || M5.Touch.getDetail().wasReleased()) handleTouch();
     
     if (currentState == STATE_BOOT && !isOtaMode) {
         static unsigned long lastUpdate = 0;
